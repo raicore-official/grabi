@@ -191,6 +191,9 @@
     <string name="settings_engine">yt-dlp engine: %1$s</string>
     <string name="settings_engine_bundled">bundled</string>
     <string name="settings_license">License: GPL-3.0-or-later · No ads, no tracking.</string>
+    <string name="settings_last_crash">Last crash: %1$s</string>
+    <string name="settings_crash_share">Share crash log</string>
+    <string name="settings_crash_clear">Clear</string>
     <string name="settings_source">Source code on GitHub</string>
     <string name="settings_roadmap">Roadmap</string>
     <string name="roadmap_phase_1">Phase 1 · UI shell, navigation, theme — done</string>

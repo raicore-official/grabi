@@ -3,6 +3,7 @@ package com.raisoft.grabi.ui.screens.settings
 import android.content.Intent
 import android.net.Uri
 import android.os.Build
+import android.text.format.DateFormat
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
@@ -30,17 +31,24 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
+import androidx.core.content.FileProvider
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.raisoft.grabi.R
 import com.raisoft.grabi.data.settings.ThemeMode
+import java.io.File
+import java.util.Date
 
 @Composable
 fun SettingsScreen(onOpenVpn: () -> Unit = {}, viewModel: SettingsViewModel = hiltViewModel()) {
     val settings by viewModel.settings.collectAsStateWithLifecycle()
     val engineVersion by viewModel.engineVersion.collectAsStateWithLifecycle()
     val adblockUpdating by viewModel.adblockUpdating.collectAsStateWithLifecycle()
-    LaunchedEffect(Unit) { viewModel.refreshEngineVersion() }
+    val lastCrash by viewModel.lastCrash.collectAsStateWithLifecycle()
+    LaunchedEffect(Unit) {
+        viewModel.refreshEngineVersion()
+        viewModel.refreshLastCrash()
+    }
     val context = LocalContext.current
     val versionName = remember {
         runCatching {
@@ -255,6 +263,43 @@ fun SettingsScreen(onOpenVpn: () -> Unit = {}, viewModel: SettingsViewModel = hi
                     text = stringResource(R.string.settings_license),
                     style = MaterialTheme.typography.bodyMedium,
                 )
+                lastCrash?.let { timestamp ->
+                    Text(
+                        text = stringResource(
+                            R.string.settings_last_crash,
+                            DateFormat.getDateFormat(context).format(Date(timestamp)),
+                        ),
+                        style = MaterialTheme.typography.bodyMedium,
+                    )
+                    Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                        TextButton(
+                            onClick = {
+                                runCatching {
+                                    val file = File(context.filesDir, "crashes/crash-last.txt")
+                                    val uri = FileProvider.getUriForFile(
+                                        context,
+                                        "${context.packageName}.fileprovider",
+                                        file,
+                                    )
+                                    context.startActivity(
+                                        Intent.createChooser(
+                                            Intent(Intent.ACTION_SEND)
+                                                .setType("text/plain")
+                                                .putExtra(Intent.EXTRA_STREAM, uri)
+                                                .addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION),
+                                            context.getString(R.string.settings_crash_share),
+                                        ),
+                                    )
+                                }
+                            },
+                        ) {
+                            Text(stringResource(R.string.settings_crash_share))
+                        }
+                        TextButton(onClick = viewModel::clearCrash) {
+                            Text(stringResource(R.string.settings_crash_clear))
+                        }
+                    }
+                }
                 TextButton(
                     onClick = {
                         runCatching {

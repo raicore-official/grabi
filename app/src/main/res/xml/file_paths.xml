@@ -3,4 +3,7 @@
     <external-files-path
         name="grabi"
         path="Grabi/" />
+    <files-path
+        name="crashes"
+        path="crashes/" />
 </paths>

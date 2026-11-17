@@ -6,6 +6,7 @@ import androidx.work.ExistingWorkPolicy
 import androidx.work.NetworkType
 import androidx.work.OneTimeWorkRequestBuilder
 import androidx.work.WorkManager
+import com.raisoft.grabi.data.crash.CrashHandler
 import com.raisoft.grabi.data.download.DownloadManager
 import com.raisoft.grabi.data.download.QueueRecoveryWorker
 import com.raisoft.grabi.data.download.YtDlpEngine
@@ -32,6 +33,7 @@ class GrabiApplication : Application() {
 
     override fun onCreate() {
         super.onCreate()
+        CrashHandler.install(this)
         NewPipe.init(OkHttpDownloader())
         applicationScope.launch { runCatching { engine.warmUp() } }
         applicationScope.launch { downloadManager.recoverAndPump() }
