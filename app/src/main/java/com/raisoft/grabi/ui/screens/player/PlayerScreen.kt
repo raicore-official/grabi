@@ -919,3 +919,48 @@ private fun AudioStage(info: StreamInfo?) {
         }
     }
 }
+
+@androidx.compose.ui.tooling.preview.Preview(name = "Player parts - Light", showBackground = true)
+@Composable
+private fun PlayerPartsLightPreview() {
+    com.raisoft.grabi.ui.theme.GrabiTheme(themeMode = com.raisoft.grabi.data.settings.ThemeMode.LIGHT) {
+        PlayerPartsSample()
+    }
+}
+
+@androidx.compose.ui.tooling.preview.Preview(name = "Player parts - Dark", showBackground = true)
+@Composable
+private fun PlayerPartsDarkPreview() {
+    com.raisoft.grabi.ui.theme.GrabiTheme(themeMode = com.raisoft.grabi.data.settings.ThemeMode.DARK) {
+        PlayerPartsSample()
+    }
+}
+
+@Composable
+private fun PlayerPartsSample() {
+    Column(
+        modifier = Modifier
+            .fillMaxWidth()
+            .background(MaterialTheme.colorScheme.background)
+            .padding(16.dp),
+        verticalArrangement = Arrangement.spacedBy(12.dp),
+    ) {
+        SeekBar(positionMs = 42_000, durationMs = 210_000, bufferedMs = 95_000, onSeek = {})
+        Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+            ActionChip(icon = Icons.Rounded.Download, label = "Download", onClick = {})
+            ActionChip(icon = Icons.Rounded.MusicNote, label = "Audio", active = true, onClick = {})
+        }
+        RelatedRow(
+            item = FeedItem(
+                url = "https://youtube.com/watch?v=preview",
+                title = "Sample related video with a reasonably long title",
+                uploader = "Raisoft Studio",
+                uploaderAvatarUrl = null,
+                thumbnailUrl = null,
+                durationSeconds = 372,
+                viewCount = 12_400,
+            ),
+            onClick = {},
+        )
+    }
+}

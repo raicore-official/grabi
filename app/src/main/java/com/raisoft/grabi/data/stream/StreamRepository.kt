@@ -108,7 +108,7 @@ class StreamRepository @Inject constructor(
             )
         }
         val subtitle = runCatching {
-            extractor.subtitlesDefault.firstOrNull { it.languageCode == "en" }
+            extractor.subtitlesDefault.firstOrNull { it.languageTag == "en" }
                 ?: extractor.subtitlesDefault.firstOrNull()
         }.getOrNull()
         return StreamInfo(
@@ -128,7 +128,7 @@ class StreamRepository @Inject constructor(
                 extractor.uploaderAvatars.maxByOrNull { it.width }?.url
             }.getOrNull(),
             subtitleUrl = subtitle?.content,
-            subtitleLanguage = subtitle?.languageCode,
+            subtitleLanguage = subtitle?.languageTag,
             related = relatedItems(extractor),
         )
     }
