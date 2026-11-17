@@ -55,6 +55,10 @@ class BrowserViewModel @Inject constructor(
         tabManager.restore()
     }
 
+    fun openInitialUrl(url: String) {
+        if (url.isNotBlank() && activeTab.value?.url != url) tabManager.loadUrl(url)
+    }
+
     fun engineFor(id: String): BrowserEngine? = tabManager.engineFor(id)
 
     fun openTab(incognito: Boolean) {

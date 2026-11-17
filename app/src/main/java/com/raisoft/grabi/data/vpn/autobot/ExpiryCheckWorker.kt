@@ -10,7 +10,7 @@ class ExpiryCheckWorker(context: Context, params: WorkerParameters) :
 
     override suspend fun doWork(): Result {
         val entry = EntryPointAccessors.fromApplication(applicationContext, AutoBotEntryPoint::class.java)
-        entry.manager().checkExpiry()
+        entry.autoBotManager().checkExpiry()
         return Result.success()
     }
 }

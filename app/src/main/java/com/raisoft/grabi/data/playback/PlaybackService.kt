@@ -226,8 +226,6 @@ class PlaybackService : MediaSessionService() {
         if (url.startsWith("http")) {
             OkHttpDataSource.Factory(httpClient)
                 .setUserAgent(Util.getUserAgent(this, "Grabi"))
-                .setConnectTimeoutMs(15_000)
-                .setReadTimeoutMs(15_000)
         } else {
             DefaultDataSource.Factory(this)
         }

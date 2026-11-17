@@ -10,6 +10,6 @@ class ProviderDiscoveryWorker(context: Context, params: WorkerParameters) :
 
     override suspend fun doWork(): Result {
         val entry = EntryPointAccessors.fromApplication(applicationContext, AutoBotEntryPoint::class.java)
-        return if (entry.manager().runCycle(allowReplace = false)) Result.success() else Result.retry()
+        return if (entry.autoBotManager().runCycle(allowReplace = false)) Result.success() else Result.retry()
     }
 }

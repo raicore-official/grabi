@@ -10,6 +10,6 @@ class ConfigRenewalWorker(context: Context, params: WorkerParameters) :
 
     override suspend fun doWork(): Result {
         val entry = EntryPointAccessors.fromApplication(applicationContext, AutoBotEntryPoint::class.java)
-        return if (entry.manager().runCycle()) Result.success() else Result.retry()
+        return if (entry.autoBotManager().runCycle()) Result.success() else Result.retry()
     }
 }

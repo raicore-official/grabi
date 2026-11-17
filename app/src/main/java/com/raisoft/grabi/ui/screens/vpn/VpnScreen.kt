@@ -60,7 +60,11 @@ import com.raisoft.grabi.domain.vpn.VpnStatus
 
 @OptIn(ExperimentalLayoutApi::class)
 @Composable
-fun VpnScreen(onBack: () -> Unit, viewModel: VpnViewModel = hiltViewModel()) {
+fun VpnScreen(
+    onBack: () -> Unit,
+    onOpenRenewal: (String) -> Unit = {},
+    viewModel: VpnViewModel = hiltViewModel(),
+) {
     val connection by viewModel.connection.collectAsStateWithLifecycle()
     val entries by viewModel.entries.collectAsStateWithLifecycle()
     val killSwitch by viewModel.killSwitch.collectAsStateWithLifecycle()
@@ -70,6 +74,7 @@ fun VpnScreen(onBack: () -> Unit, viewModel: VpnViewModel = hiltViewModel()) {
     val finderError by viewModel.finderError.collectAsStateWithLifecycle()
     val finderUpdated by viewModel.finderUpdated.collectAsStateWithLifecycle()
     val systemVpn by viewModel.systemVpn.collectAsStateWithLifecycle()
+    val expiryRecords by viewModel.expiryRecords.collectAsStateWithLifecycle()
     val importError by viewModel.importError.collectAsStateWithLifecycle()
     val installedApps by viewModel.installedApps.collectAsStateWithLifecycle()
     val context = LocalContext.current
@@ -118,6 +123,7 @@ fun VpnScreen(onBack: () -> Unit, viewModel: VpnViewModel = hiltViewModel()) {
         VpnStatus.ERROR -> stringResource(R.string.vpn_status_error)
     }
     val activeEntry = entries.find { it.name == connection.activeName }
+    val activeExpiry = activeEntry?.let { expiryRecords[com.raisoft.grabi.domain.vpn.ConfigKeys.of(it.configText)] }
     val busy = connection.status == VpnStatus.CONNECTING || connection.status == VpnStatus.VERIFYING
 
     Column(
@@ -222,7 +228,37 @@ fun VpnScreen(onBack: () -> Unit, viewModel: VpnViewModel = hiltViewModel()) {
                             color = MaterialTheme.colorScheme.onSurfaceVariant,
                         )
                     }
+
                     VpnStatus.DISCONNECTING -> Unit
+                }
+                if (activeEntry != null && activeExpiry != null) {
+                    val remaining = com.raisoft.grabi.domain.vpn.ExpiryCalculator.remainingMs(
+                        activeExpiry,
+                        System.currentTimeMillis(),
+                    )
+                    Text(
+                        text = "Configuration expiry: ${
+                            remaining?.let { formatRemaining(it) } ?: "unknown"
+                        }",
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    )
+                    if (remaining != null &&
+                        remaining <= com.raisoft.grabi.domain.vpn.ExpiryCalculator.EXPIRING_SOON_MS
+                    ) {
+                        Text(
+                            text = "This configuration is nearing expiry.",
+                            color = MaterialTheme.colorScheme.error,
+                        )
+                    }
+                    OutlinedButton(
+                        onClick = {
+                            onOpenRenewal(activeEntry.source.lowercase().ifBlank { "vpnbook" })
+                        },
+                        modifier = Modifier.fillMaxWidth(),
+                    ) {
+                        Text("Regenerate configuration")
+                    }
                 }
             }
         }
@@ -696,4 +732,10 @@ private fun ageLabel(timestamp: Long): String {
         hours < 24 -> stringResource(R.string.vpn_age_hours, hours.toInt())
         else -> stringResource(R.string.vpn_age_days, (hours / 24).toInt())
     }
+}
+
+private fun formatRemaining(ms: Long): String {
+    val hours = ms / 3_600_000
+    val minutes = (ms / 60_000) % 60
+    return if (hours > 0) "${hours}h ${minutes}m" else "${minutes}m"
 }

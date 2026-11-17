@@ -105,6 +105,7 @@ private val SITES = listOf(
 @Composable
 fun BrowserScreen(
     onDownloadPage: (String) -> Unit,
+    initialUrl: String = "",
     viewModel: BrowserViewModel = hiltViewModel(),
 ) {
     val tabs by viewModel.tabs.collectAsStateWithLifecycle()
@@ -119,6 +120,9 @@ fun BrowserScreen(
     val browserBackground = MaterialTheme.colorScheme.background.toArgb()
     LaunchedEffect(dark, browserBackground) {
         viewModel.applyTheme(dark, browserBackground)
+    }
+    LaunchedEffect(initialUrl) {
+        viewModel.openInitialUrl(initialUrl)
     }
 
     var urlInput by remember(active?.id) { mutableStateOf(active?.url ?: "") }

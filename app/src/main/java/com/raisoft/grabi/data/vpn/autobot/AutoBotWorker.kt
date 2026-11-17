@@ -13,12 +13,12 @@ class AutoBotWorker(context: Context, params: WorkerParameters) :
 
     override suspend fun doWork(): Result {
         val entry = EntryPointAccessors.fromApplication(applicationContext, AutoBotEntryPoint::class.java)
-        return if (entry.manager().runCycle()) Result.success() else Result.retry()
+        return if (entry.autoBotManager().runCycle()) Result.success() else Result.retry()
     }
 }
 
 @EntryPoint
 @InstallIn(SingletonComponent::class)
 interface AutoBotEntryPoint {
-    fun manager(): AutoBotManager
+    fun autoBotManager(): AutoBotManager
 }

@@ -7,8 +7,11 @@ import android.net.VpnService
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.raisoft.grabi.data.vpn.VpnRepository
+import com.raisoft.grabi.data.vpn.autobot.ConfigExpiryManager
+import com.raisoft.grabi.domain.vpn.ConfigKeys
 import com.raisoft.grabi.domain.vpn.ConfigTrust
 import com.raisoft.grabi.domain.vpn.VpnConfigEntry
+import com.raisoft.grabi.domain.vpn.ExpiryRecord
 import dagger.hilt.android.lifecycle.HiltViewModel
 import dagger.hilt.android.qualifiers.ApplicationContext
 import java.io.IOException
@@ -25,6 +28,7 @@ data class AppInfo(val packageName: String, val label: String)
 @HiltViewModel
 class VpnViewModel @Inject constructor(
     private val repository: VpnRepository,
+    private val expiryManager: ConfigExpiryManager,
     @ApplicationContext private val context: Context,
 ) : ViewModel() {
 
@@ -37,6 +41,7 @@ class VpnViewModel @Inject constructor(
     val finderError = repository.finderError
     val finderUpdated = repository.finderUpdated
     val systemVpn = repository.systemVpn
+    val expiryRecords = expiryManager.records
 
     private val _importError = MutableStateFlow<String?>(null)
     val importError: StateFlow<String?> = _importError.asStateFlow()
@@ -110,4 +115,7 @@ class VpnViewModel @Inject constructor(
     }
 
     fun setExcludedApps(apps: Set<String>) = repository.setExcludedApps(apps)
+
+    fun expiryFor(entry: VpnConfigEntry?): ExpiryRecord? =
+        entry?.let { expiryRecords.value[ConfigKeys.of(it.configText)] }
 }

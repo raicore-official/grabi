@@ -19,12 +19,14 @@ import androidx.navigation.compose.composable
 import androidx.navigation.compose.currentBackStackEntryAsState
 import androidx.navigation.compose.rememberNavController
 import androidx.navigation.navArgument
+import androidx.navigation.NavType
 import com.raisoft.grabi.data.PendingNav
 import com.raisoft.grabi.data.download.PendingLink
 import com.raisoft.grabi.ui.components.GlassNavBar
 import com.raisoft.grabi.ui.navigation.TopLevelDestination
 import com.raisoft.grabi.ui.screens.autobot.AutoBotScreen
 import com.raisoft.grabi.ui.screens.autobot.VpnBookHandoffScreen
+import com.raisoft.grabi.ui.screens.autobot.RenewalAssistantScreen
 import com.raisoft.grabi.ui.screens.browser.BrowserScreen
 import com.raisoft.grabi.ui.screens.downloads.DownloadsScreen
 import com.raisoft.grabi.ui.screens.grab.GrabScreen
@@ -108,6 +110,18 @@ fun GrabiApp(pendingLink: PendingLink, pendingNav: PendingNav) {
                     },
                 )
             }
+            composable(
+                route = "browser?url={url}",
+                arguments = listOf(navArgument("url") { type = NavType.StringType; defaultValue = "" }),
+            ) { entry ->
+                BrowserScreen(
+                    initialUrl = entry.arguments?.getString("url").orEmpty(),
+                    onDownloadPage = { url ->
+                        pendingLink.offer(url)
+                        openGrab()
+                    },
+                )
+            }
             composable(TopLevelDestination.DOWNLOADS.route) {
                 DownloadsScreen(
                     onPlay = { entity ->
@@ -126,7 +140,12 @@ fun GrabiApp(pendingLink: PendingLink, pendingNav: PendingNav) {
                 )
             }
             composable("vpn") {
-                VpnScreen(onBack = { navController.popBackStack() })
+                VpnScreen(
+                    onBack = { navController.popBackStack() },
+                    onOpenRenewal = { providerId ->
+                        navController.navigate("renewal/${Uri.encode(providerId)}")
+                    },
+                )
             }
             composable("autobot") {
                 AutoBotScreen(
@@ -136,6 +155,20 @@ fun GrabiApp(pendingLink: PendingLink, pendingNav: PendingNav) {
             }
             composable("vpnbook-handoff") {
                 VpnBookHandoffScreen(onBack = { navController.popBackStack() })
+            }
+            composable(
+                route = "renewal/{providerId}",
+                arguments = listOf(navArgument("providerId") { type = NavType.StringType }),
+            ) { entry ->
+                RenewalAssistantScreen(
+                    providerId = entry.arguments?.getString("providerId").orEmpty(),
+                    expiryRecord = null,
+                    onBack = { navController.popBackStack() },
+                    onOpenBrowser = { url ->
+                        navController.navigate("browser?url=${Uri.encode(url)}")
+                    },
+                    onOpenVpn = { navController.navigate("vpn") },
+                )
             }
             composable(
                 route = "player?url={url}&title={title}&thumb={thumb}",

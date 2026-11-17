@@ -9,6 +9,7 @@ class ProviderRegistry @Inject constructor(
     vpnBook: VpnBookSource,
 ) {
     val sources: List<VpnConfigSource> = listOf(gitHub, vpnBook)
+    val providers: List<VpnProvider> = VpnProviderCatalog.entries
 
     fun ordered(priority: List<String>): List<VpnConfigSource> =
         sources.sortedBy { source ->
@@ -17,4 +18,6 @@ class ProviderRegistry @Inject constructor(
         }
 
     fun byId(id: String): VpnConfigSource? = sources.firstOrNull { it.id == id }
+
+    fun provider(id: String): VpnProvider? = providers.firstOrNull { it.id == id }
 }

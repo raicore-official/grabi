@@ -12,7 +12,7 @@ import kotlinx.coroutines.launch
 @HiltViewModel
 class OnboardingViewModel @Inject constructor(
     private val settingsRepository: SettingsRepository,
-    vpnRepository: VpnRepository,
+    private val vpnRepository: VpnRepository,
 ) : ViewModel() {
 
     val killSwitch: StateFlow<Boolean> = vpnRepository.killSwitch

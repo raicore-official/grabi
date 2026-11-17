@@ -13,7 +13,7 @@ class QueueRecoveryWorker(context: Context, params: WorkerParameters) :
 
     override suspend fun doWork(): Result {
         val entry = EntryPointAccessors.fromApplication(applicationContext, RecoveryEntryPoint::class.java)
-        entry.manager().recoverAndPump()
+        entry.downloadManager().recoverAndPump()
         return Result.success()
     }
 }
@@ -21,5 +21,5 @@ class QueueRecoveryWorker(context: Context, params: WorkerParameters) :
 @EntryPoint
 @InstallIn(SingletonComponent::class)
 interface RecoveryEntryPoint {
-    fun manager(): DownloadManager
+    fun downloadManager(): DownloadManager
 }
