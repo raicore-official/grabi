@@ -2,6 +2,7 @@ package com.raisoft.grabi.ui.screens.settings
 
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import com.raisoft.grabi.data.browser.AdblockEngine
 import com.raisoft.grabi.data.download.YtDlpEngine
 import com.raisoft.grabi.data.settings.SettingsRepository
 import com.raisoft.grabi.data.settings.ThemeMode
@@ -19,6 +20,7 @@ import kotlinx.coroutines.launch
 class SettingsViewModel @Inject constructor(
     private val settingsRepository: SettingsRepository,
     private val engine: YtDlpEngine,
+    private val adblock: AdblockEngine,
 ) : ViewModel() {
 
     val settings: StateFlow<UserSettings> = settingsRepository.settings.stateIn(
@@ -29,6 +31,9 @@ class SettingsViewModel @Inject constructor(
 
     private val _engineVersion = MutableStateFlow<String?>(null)
     val engineVersion: StateFlow<String?> = _engineVersion.asStateFlow()
+
+    private val _adblockUpdating = MutableStateFlow(false)
+    val adblockUpdating: StateFlow<Boolean> = _adblockUpdating.asStateFlow()
 
     init {
         refreshEngineVersion()
@@ -52,5 +57,17 @@ class SettingsViewModel @Inject constructor(
 
     fun setWifiOnly(enabled: Boolean) {
         viewModelScope.launch { settingsRepository.setWifiOnly(enabled) }
+    }
+
+    fun setAdblockEnabled(enabled: Boolean) {
+        viewModelScope.launch { settingsRepository.setAdblockEnabled(enabled) }
+    }
+
+    fun updateAdblock() {
+        viewModelScope.launch {
+            _adblockUpdating.value = true
+            runCatching { adblock.update() }
+            _adblockUpdating.value = false
+        }
     }
 }

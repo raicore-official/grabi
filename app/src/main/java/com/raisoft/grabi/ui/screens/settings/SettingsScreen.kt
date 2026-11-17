@@ -39,6 +39,7 @@ import com.raisoft.grabi.data.settings.ThemeMode
 fun SettingsScreen(viewModel: SettingsViewModel = hiltViewModel()) {
     val settings by viewModel.settings.collectAsStateWithLifecycle()
     val engineVersion by viewModel.engineVersion.collectAsStateWithLifecycle()
+    val adblockUpdating by viewModel.adblockUpdating.collectAsStateWithLifecycle()
     LaunchedEffect(Unit) { viewModel.refreshEngineVersion() }
     val context = LocalContext.current
     val versionName = remember {
@@ -154,6 +155,65 @@ fun SettingsScreen(viewModel: SettingsViewModel = hiltViewModel()) {
         ElevatedCard(Modifier.fillMaxWidth()) {
             Column(
                 modifier = Modifier.padding(16.dp),
+                verticalArrangement = Arrangement.spacedBy(12.dp),
+            ) {
+                Text(
+                    text = stringResource(R.string.settings_browser),
+                    style = MaterialTheme.typography.titleMedium,
+                )
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    Column(Modifier.weight(1f)) {
+                        Text(
+                            text = stringResource(R.string.settings_adblock),
+                            style = MaterialTheme.typography.bodyLarge,
+                        )
+                        Text(
+                            text = stringResource(R.string.settings_adblock_summary),
+                            style = MaterialTheme.typography.bodySmall,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        )
+                    }
+                    Switch(
+                        checked = settings.adblockEnabled,
+                        onCheckedChange = viewModel::setAdblockEnabled,
+                    )
+                }
+                Text(
+                    text = stringResource(
+                        R.string.settings_adblock_updated,
+                        adblockAgeLabel(settings.adblockLastUpdated),
+                    ),
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                )
+                Text(
+                    text = stringResource(
+                        R.string.settings_adblock_allowlist,
+                        settings.adblockAllowlist.size,
+                    ),
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                )
+                TextButton(
+                    onClick = viewModel::updateAdblock,
+                    enabled = !adblockUpdating,
+                ) {
+                    Text(
+                        stringResource(
+                            if (adblockUpdating) {
+                                R.string.settings_adblock_updating
+                            } else {
+                                R.string.settings_adblock_update
+                            },
+                        ),
+                    )
+                }
+            }
+        }
+
+        ElevatedCard(Modifier.fillMaxWidth()) {
+            Column(
+                modifier = Modifier.padding(16.dp),
                 verticalArrangement = Arrangement.spacedBy(8.dp),
             ) {
                 Text(
@@ -223,4 +283,16 @@ private fun ThemeMode.labelRes(): Int = when (this) {
     ThemeMode.SYSTEM -> R.string.theme_system
     ThemeMode.LIGHT -> R.string.theme_light
     ThemeMode.DARK -> R.string.theme_dark
+}
+
+@Composable
+private fun adblockAgeLabel(timestamp: Long): String {
+    if (timestamp == 0L) return stringResource(R.string.settings_adblock_never)
+    val ageMs = System.currentTimeMillis() - timestamp
+    val hours = ageMs / 3_600_000
+    return when {
+        hours < 1 -> stringResource(R.string.settings_adblock_now)
+        hours < 24 -> stringResource(R.string.settings_adblock_hours, hours.toInt())
+        else -> stringResource(R.string.settings_adblock_days, (hours / 24).toInt())
+    }
 }
