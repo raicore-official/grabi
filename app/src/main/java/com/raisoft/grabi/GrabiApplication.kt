@@ -9,7 +9,9 @@ import androidx.work.WorkManager
 import com.raisoft.grabi.data.download.DownloadManager
 import com.raisoft.grabi.data.download.QueueRecoveryWorker
 import com.raisoft.grabi.data.download.YtDlpEngine
+import com.raisoft.grabi.data.playback.OkHttpDownloader
 import dagger.hilt.android.HiltAndroidApp
+import org.schabi.newpipe.extractor.NewPipe
 import javax.inject.Inject
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
@@ -26,6 +28,7 @@ class GrabiApplication : Application() {
 
     override fun onCreate() {
         super.onCreate()
+        NewPipe.init(OkHttpDownloader())
         applicationScope.launch { runCatching { engine.warmUp() } }
         applicationScope.launch { downloadManager.recoverAndPump() }
         WorkManager.getInstance(this).enqueueUniqueWork(
