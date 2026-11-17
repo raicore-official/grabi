@@ -54,7 +54,7 @@ class FilterListParserTest {
 
     @Test
     fun optionRulesAreSkippedToAvoidOverblocking() {
-        val r = rules("||example.com^$third-party", "||tracker.net^$domain=foo.com")
+        val r = rules("||example.com^\$third-party", "||tracker.net^\$domain=foo.com")
         assertFalse(blocked(r, "https://example.com/", "example.com"))
         assertFalse(blocked(r, "https://tracker.net/", "tracker.net"))
     }
