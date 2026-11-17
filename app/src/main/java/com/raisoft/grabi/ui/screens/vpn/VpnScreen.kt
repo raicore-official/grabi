@@ -152,6 +152,27 @@ fun VpnScreen(
                 verticalArrangement = Arrangement.spacedBy(8.dp),
             ) {
                 Text(text = statusLabel, style = MaterialTheme.typography.titleLarge)
+                val tunnelActive = connection.status == VpnStatus.CONNECTED ||
+                    connection.status == VpnStatus.CONNECTING ||
+                    connection.status == VpnStatus.VERIFYING
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    verticalAlignment = Alignment.CenterVertically,
+                ) {
+                    Text(
+                        text = if (tunnelActive) "VPN is on" else "VPN is off",
+                        style = MaterialTheme.typography.bodyLarge,
+                        modifier = Modifier.weight(1f),
+                    )
+                    Switch(
+                        checked = tunnelActive,
+                        onCheckedChange = {
+                            if (it && activeEntry != null) requestConnect(activeEntry)
+                            else if (!it) viewModel.disconnect()
+                        },
+                        enabled = activeEntry != null && !busy,
+                    )
+                }
                 if (connection.activeName != null) {
                     val country = connection.activeCountry?.let { CountryClassifier.country(it).name }
                     Text(

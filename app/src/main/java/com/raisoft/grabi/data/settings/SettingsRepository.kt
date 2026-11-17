@@ -36,7 +36,7 @@ class SettingsRepository @Inject constructor(
                 ?.let { stored -> runCatching { ThemeMode.valueOf(stored) }.getOrNull() }
                 ?: ThemeMode.DARK,
             dynamicColor = preferences[dynamicColorKey] ?: false,
-            downloadParallelism = (preferences[parallelismKey] ?: 2).coerceIn(1, 3),
+            downloadParallelism = (preferences[parallelismKey] ?: 2).coerceIn(1, 6),
             wifiOnly = preferences[wifiOnlyKey] ?: false,
             downloadDestination = preferences[destinationKey] ?: "",
             adblockEnabled = preferences[adblockEnabledKey] ?: true,
@@ -55,7 +55,7 @@ class SettingsRepository @Inject constructor(
     }
 
     suspend fun setDownloadParallelism(value: Int) {
-        context.settingsDataStore.edit { it[parallelismKey] = value.coerceIn(1, 3) }
+        context.settingsDataStore.edit { it[parallelismKey] = value.coerceIn(1, 6) }
     }
 
     suspend fun setWifiOnly(enabled: Boolean) {
