@@ -57,16 +57,19 @@ import com.raisoft.grabi.R
 import com.raisoft.grabi.domain.CompactNumber
 import com.raisoft.grabi.domain.model.FeedItem
 import com.raisoft.grabi.ui.formatDuration
+import com.raisoft.grabi.ui.theme.SiteBrand
+import com.raisoft.grabi.ui.theme.onVideo
+import com.raisoft.grabi.ui.theme.videoScrim
 
-private data class QuickSite(val name: String, val url: String, val color: Long)
+private data class QuickSite(val name: String, val url: String, val color: Color)
 
 private val QUICK_SITES = listOf(
-    QuickSite("YouTube", "https://www.youtube.com", 0xFFFF0000),
-    QuickSite("Instagram", "https://www.instagram.com", 0xFFE1306C),
-    QuickSite("Facebook", "https://www.facebook.com", 0xFF1877F2),
-    QuickSite("TikTok", "https://www.tiktok.com", 0xFF25F4EE),
-    QuickSite("Pinterest", "https://www.pinterest.com", 0xFFE60023),
-    QuickSite("X", "https://x.com", 0xFFE7E9EA),
+    QuickSite("YouTube", "https://www.youtube.com", SiteBrand.YouTube),
+    QuickSite("Instagram", "https://www.instagram.com", SiteBrand.Instagram),
+    QuickSite("Facebook", "https://www.facebook.com", SiteBrand.Facebook),
+    QuickSite("TikTok", "https://www.tiktok.com", SiteBrand.TikTok),
+    QuickSite("Pinterest", "https://www.pinterest.com", SiteBrand.Pinterest),
+    QuickSite("X", "https://x.com", SiteBrand.X),
 )
 
 @Composable
@@ -170,7 +173,7 @@ fun HomeScreen(
                                     onOpenBrowser()
                                 },
                                 shape = CircleShape,
-                                color = Color(site.color),
+                                color = site.color,
                                 modifier = Modifier.size(48.dp),
                             ) {
                                 Box(contentAlignment = Alignment.Center) {
@@ -178,9 +181,9 @@ fun HomeScreen(
                                         text = site.name.take(1),
                                         style = MaterialTheme.typography.titleMedium,
                                         color = if (site.name == "TikTok" || site.name == "X") {
-                                            Color(0xFF0F1115)
+                                            SiteBrand.OnLight
                                         } else {
-                                            Color.White
+                                            SiteBrand.OnDark
                                         },
                                     )
                                 }
@@ -263,25 +266,31 @@ private fun FeedCard(item: FeedItem, onOpen: () -> Unit, onDownload: () -> Unit)
                     verticalAlignment = Alignment.CenterVertically,
                 ) {
                     if (item.viewCount >= 0) {
-                        Surface(color = Color(0xB3000000), shape = RoundedCornerShape(6.dp)) {
+                        Surface(
+                            color = MaterialTheme.colorScheme.videoScrim.copy(alpha = 0.7f),
+                            shape = RoundedCornerShape(6.dp),
+                        ) {
                             Text(
                                 text = stringResource(
                                     R.string.home_views,
                                     CompactNumber.format(item.viewCount),
                                 ),
                                 style = MaterialTheme.typography.labelSmall,
-                                color = Color.White,
+                                color = MaterialTheme.colorScheme.onVideo,
                                 modifier = Modifier.padding(horizontal = 6.dp, vertical = 2.dp),
                             )
                         }
                     }
                     Spacer(Modifier.weight(1f))
                     if (item.durationSeconds > 0) {
-                        Surface(color = Color(0xB3000000), shape = RoundedCornerShape(6.dp)) {
+                        Surface(
+                            color = MaterialTheme.colorScheme.videoScrim.copy(alpha = 0.7f),
+                            shape = RoundedCornerShape(6.dp),
+                        ) {
                             Text(
                                 text = formatDuration(item.durationSeconds.toInt()),
                                 style = MaterialTheme.typography.labelSmall,
-                                color = Color.White,
+                                color = MaterialTheme.colorScheme.onVideo,
                                 modifier = Modifier.padding(horizontal = 6.dp, vertical = 2.dp),
                             )
                         }

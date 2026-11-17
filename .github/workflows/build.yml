@@ -27,11 +27,28 @@ jobs:
       - name: Set up Gradle
         uses: gradle/actions/setup-gradle@v4
 
+      - name: Theme color guard
+        run: |
+          kt=$(grep -rnE 'Color\.(White|Black|Red|Green|Blue|Yellow|Gray|LightGray|DarkGray)\b|Color\(0x|"#[0-9a-fA-F]{6,8}"' app/src/main/java --include='*.kt' | grep -v '/ui/theme/' || true)
+          xml=$(grep -rnE '#[0-9a-fA-F]{3,8}' app/src/main/res/drawable --include='*.xml' | grep -v 'ic_launcher' || true)
+          if [ -n "$kt$xml" ]; then
+            echo "Hardcoded colors outside the theme package:"
+            echo "$kt"
+            echo "$xml"
+            exit 1
+          fi
+
       - name: Build debug APK
         run: ./gradlew assembleDebug --no-daemon --stacktrace
 
       - name: Run unit tests
         run: ./gradlew testDebugUnitTest --no-daemon
+
+      - name: Record theme snapshots (light + dark)
+        run: ./gradlew :app:recordPaparazziDebug --no-daemon
+
+      - name: Verify theme snapshots
+        run: ./gradlew :app:verifyPaparazziDebug --no-daemon
 
       - name: Run lint
         run: ./gradlew lintDebug --no-daemon
@@ -51,4 +68,12 @@ jobs:
           path: |
             app/build/reports/tests
             app/build/reports/lint-results-debug.html
+          if-no-files-found: ignore
+
+      - name: Upload theme snapshots
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: theme-snapshots
+          path: app/src/test/snapshots
           if-no-files-found: ignore

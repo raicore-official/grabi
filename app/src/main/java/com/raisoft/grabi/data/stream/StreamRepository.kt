@@ -8,6 +8,7 @@ import javax.inject.Inject
 import javax.inject.Singleton
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
+import org.schabi.newpipe.extractor.InfoItem
 import org.schabi.newpipe.extractor.ServiceList
 import org.schabi.newpipe.extractor.stream.StreamExtractor
 import org.schabi.newpipe.extractor.stream.StreamInfoItem
@@ -107,8 +108,8 @@ class StreamRepository @Inject constructor(
             )
         }
         val subtitle = runCatching {
-            extractor.subtitles.firstOrNull { it.languageCode == "en" }
-                ?: extractor.subtitles.firstOrNull()
+            extractor.subtitlesDefault.firstOrNull { it.languageCode == "en" }
+                ?: extractor.subtitlesDefault.firstOrNull()
         }.getOrNull()
         return StreamInfo(
             title = extractor.name,
@@ -117,7 +118,8 @@ class StreamRepository @Inject constructor(
             thumbnailUrl = bestThumbnail(extractor),
             videoOptions = StreamOptionMapper.videoOptions(videos, audios, extractor.length),
             audioOptions = StreamOptionMapper.audioOptions(audios),
-            description = runCatching { extractor.description }.getOrNull(),
+            description = runCatching { extractor.description.content }.getOrNull()
+                ?.takeIf { it.isNotBlank() },
             viewCount = runCatching { extractor.viewCount }.getOrDefault(-1),
             likeCount = runCatching { extractor.likeCount }.getOrDefault(-1),
             uploadDate = runCatching { extractor.textualUploadDate }.getOrNull(),
@@ -136,7 +138,8 @@ class StreamRepository @Inject constructor(
 
     private fun relatedItems(extractor: StreamExtractor): List<FeedItem> =
         runCatching {
-            extractor.relatedItems.filterIsInstance<StreamInfoItem>().take(20).map { item ->
+            val items: List<InfoItem> = extractor.relatedItems?.items.orEmpty()
+            items.filterIsInstance<StreamInfoItem>().take(20).map { item ->
                 FeedItem(
                     url = item.url,
                     title = item.name,

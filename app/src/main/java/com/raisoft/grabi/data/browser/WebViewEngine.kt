@@ -8,6 +8,7 @@ import android.webkit.WebResourceResponse
 import android.webkit.WebSettings
 import android.webkit.WebView
 import android.webkit.WebViewClient
+import androidx.webkit.WebSettingsCompat
 import com.raisoft.grabi.domain.MediaSniffer
 import com.raisoft.grabi.domain.model.DetectedMedia
 import java.io.ByteArrayInputStream
@@ -77,6 +78,11 @@ class WebViewEngine(
                 listener.onTitle(title.orEmpty())
             }
         }
+    }
+
+    fun applyTheme(dark: Boolean, backgroundArgb: Int) {
+        WebSettingsCompat.setAlgorithmicDarkeningAllowed(view.settings, dark)
+        view.setBackgroundColor(backgroundArgb)
     }
 
     override fun loadUrl(url: String) {

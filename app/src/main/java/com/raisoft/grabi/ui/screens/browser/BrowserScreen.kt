@@ -2,6 +2,7 @@ package com.raisoft.grabi.ui.screens.browser
 
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.isSystemInDarkTheme
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -53,6 +54,7 @@ import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.key
 import androidx.compose.runtime.mutableStateOf
@@ -61,6 +63,7 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.toArgb
 import androidx.compose.ui.platform.LocalSoftwareKeyboardController
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.input.ImeAction
@@ -76,6 +79,7 @@ import com.raisoft.grabi.data.browser.BrowserHistoryRepository
 import com.raisoft.grabi.data.browser.TabManager
 import com.raisoft.grabi.domain.model.DetectedMedia
 import com.raisoft.grabi.domain.model.MediaKind
+import com.raisoft.grabi.ui.theme.resolveDark
 import java.net.URI
 
 private data class Site(val name: String, val url: String)
@@ -103,6 +107,12 @@ fun BrowserScreen(
     val history by viewModel.history.collectAsStateWithLifecycle()
     val adblockUpdating by viewModel.adblockUpdating.collectAsStateWithLifecycle()
     val keyboard = LocalSoftwareKeyboardController.current
+
+    val dark = settings.themeMode.resolveDark(isSystemInDarkTheme())
+    val browserBackground = MaterialTheme.colorScheme.background.toArgb()
+    LaunchedEffect(dark, browserBackground) {
+        viewModel.applyTheme(dark, browserBackground)
+    }
 
     var urlInput by remember(active?.id) { mutableStateOf(active?.url ?: "") }
     var showTabs by remember { mutableStateOf(false) }

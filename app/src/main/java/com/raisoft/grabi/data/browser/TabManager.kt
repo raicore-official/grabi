@@ -45,6 +45,8 @@ class TabManager @Inject constructor(
     val activeId: StateFlow<String?> = _activeId.asStateFlow()
     private val engines = ConcurrentHashMap<String, WebViewEngine>()
     private var restored = false
+    private var themeDark = false
+    private var themeBackground: Int? = null
 
     val activeTab: StateFlow<Tab?> = combine(_tabs, _activeId) { tabs, id ->
         tabs.firstOrNull { it.id == id }
@@ -95,11 +97,18 @@ class TabManager @Inject constructor(
         if (_tabs.value.any { it.id == id }) _activeId.value = id
     }
 
+    fun applyThemeToAll(dark: Boolean, backgroundArgb: Int) {
+        themeDark = dark
+        themeBackground = backgroundArgb
+        engines.values.forEach { it.applyTheme(dark, backgroundArgb) }
+    }
+
     /** Must be called on the main thread; creates the WebView lazily per tab. */
     fun engineFor(id: String): BrowserEngine? {
         val tab = _tabs.value.firstOrNull { it.id == id } ?: return null
         return engines.getOrPut(id) {
             WebViewEngine(context, tab.incognito, adblock, listenerFor(id)).also { engine ->
+                themeBackground?.let { engine.applyTheme(themeDark, it) }
                 if (tab.url.isNotBlank()) engine.loadUrl(tab.url)
             }
         }

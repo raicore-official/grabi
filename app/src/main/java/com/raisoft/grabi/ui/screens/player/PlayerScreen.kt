@@ -8,7 +8,6 @@ import android.content.pm.PackageManager
 import android.util.Rational
 import androidx.activity.compose.BackHandler
 import androidx.annotation.OptIn
-import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
 import androidx.compose.foundation.Canvas
@@ -78,10 +77,9 @@ import androidx.compose.ui.geometry.CornerRadius
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.graphics.Brush
-import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.layout.ContentScale
-import androidx.compose.ui.layout.onSizeChanged
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
@@ -102,6 +100,11 @@ import com.raisoft.grabi.domain.model.FeedItem
 import com.raisoft.grabi.domain.model.StreamInfo
 import com.raisoft.grabi.ui.components.EmptyState
 import com.raisoft.grabi.ui.formatDuration
+import com.raisoft.grabi.ui.theme.liveBadge
+import com.raisoft.grabi.ui.theme.liveText
+import com.raisoft.grabi.ui.theme.onLiveBadge
+import com.raisoft.grabi.ui.theme.onVideo
+import com.raisoft.grabi.ui.theme.videoScrim
 import kotlinx.coroutines.delay
 
 private val SPEEDS = listOf(0.25f, 0.5f, 0.75f, 1f, 1.25f, 1.5f, 1.75f, 2f)
@@ -117,6 +120,7 @@ fun PlayerScreen(
     val controller by viewModel.controller.collectAsStateWithLifecycle()
     val context = LocalContext.current
     val activity = context as? Activity
+    val scheme = MaterialTheme.colorScheme
     val pipSupported = remember(activity) {
         activity?.packageManager?.hasSystemFeature(PackageManager.FEATURE_PICTURE_IN_PICTURE) == true
     }
@@ -171,7 +175,7 @@ fun PlayerScreen(
         }
     }
 
-    Column(Modifier.fillMaxSize().background(MaterialTheme.colorScheme.background)) {
+    Column(Modifier.fillMaxSize().background(scheme.background)) {
         if (!fullscreen) {
             Row(
                 modifier = Modifier
@@ -222,7 +226,7 @@ fun PlayerScreen(
                 } else {
                     Modifier.fillMaxWidth().aspectRatio(16f / 9f)
                 }
-                Box(modifier = stageModifier.background(Color.Black)) {
+                Box(modifier = stageModifier.background(scheme.videoScrim)) {
                     if (state.audioOnly) {
                         AudioStage(info)
                     } else {
@@ -275,7 +279,7 @@ fun PlayerScreen(
                         )
                     }
 
-                    AnimatedVisibility(
+                    androidx.compose.animation.AnimatedVisibility(
                         visible = seekSide != 0,
                         enter = fadeIn(),
                         exit = fadeOut(),
@@ -288,23 +292,27 @@ fun PlayerScreen(
                             modifier = Modifier
                                 .padding(horizontal = 24.dp)
                                 .clip(RoundedCornerShape(24.dp))
-                                .background(Color.White.copy(alpha = 0.18f))
+                                .background(scheme.onVideo.copy(alpha = 0.18f))
                                 .padding(horizontal = 20.dp, vertical = 12.dp),
                         ) {
                             Icon(
                                 imageVector = if (seekSide < 0) Icons.Rounded.Replay10 else Icons.Rounded.Forward10,
                                 contentDescription = null,
-                                tint = Color.White,
+                                tint = scheme.onVideo,
                                 modifier = Modifier.size(32.dp),
                             )
-                            Text("10s", color = Color.White, style = MaterialTheme.typography.labelMedium)
+                            Text(
+                                "10s",
+                                color = scheme.onVideo,
+                                style = MaterialTheme.typography.labelMedium,
+                            )
                         }
                     }
 
                     if (info?.isLive == true) {
                         Surface(
-                            color = Color(0xFFE5322D),
-                            contentColor = Color.White,
+                            color = scheme.liveBadge,
+                            contentColor = scheme.onLiveBadge,
                             shape = RoundedCornerShape(4.dp),
                             modifier = Modifier
                                 .align(Alignment.TopStart)
@@ -321,12 +329,12 @@ fun PlayerScreen(
 
                     if (state.buffering) {
                         CircularProgressIndicator(
-                            color = Color.White,
+                            color = scheme.onVideo,
                             modifier = Modifier.align(Alignment.Center),
                         )
                     }
 
-                    AnimatedVisibility(
+                    androidx.compose.animation.AnimatedVisibility(
                         visible = controlsVisible || !state.isPlaying,
                         enter = fadeIn(),
                         exit = fadeOut(),
@@ -340,7 +348,10 @@ fun PlayerScreen(
                                     .align(Alignment.TopCenter)
                                     .background(
                                         Brush.verticalGradient(
-                                            listOf(Color.Black.copy(alpha = 0.6f), Color.Transparent),
+                                            listOf(
+                                                scheme.videoScrim.copy(alpha = 0.6f),
+                                                scheme.videoScrim.copy(alpha = 0f),
+                                            ),
                                         ),
                                     ),
                             )
@@ -351,7 +362,10 @@ fun PlayerScreen(
                                     .align(Alignment.BottomCenter)
                                     .background(
                                         Brush.verticalGradient(
-                                            listOf(Color.Transparent, Color.Black.copy(alpha = 0.7f)),
+                                            listOf(
+                                                scheme.videoScrim.copy(alpha = 0f),
+                                                scheme.videoScrim.copy(alpha = 0.7f),
+                                            ),
                                         ),
                                     ),
                             )
@@ -391,11 +405,7 @@ fun PlayerScreen(
                                                 Icons.Rounded.ClosedCaptionDisabled
                                             },
                                             contentDescription = stringResource(R.string.player_captions),
-                                            tint = if (state.captionsEnabled) {
-                                                MaterialTheme.colorScheme.primary
-                                            } else {
-                                                Color.White
-                                            },
+                                            tint = if (state.captionsEnabled) scheme.primary else scheme.onVideo,
                                         )
                                     }
                                 }
@@ -409,7 +419,7 @@ fun PlayerScreen(
                                         contentDescription = stringResource(
                                             if (fullscreen) R.string.player_exit_fullscreen else R.string.player_fullscreen,
                                         ),
-                                        tint = Color.White,
+                                        tint = scheme.onVideo,
                                     )
                                 }
                             }
@@ -422,7 +432,7 @@ fun PlayerScreen(
                                     Icon(
                                         Icons.Rounded.Replay10,
                                         contentDescription = stringResource(R.string.player_rewind),
-                                        tint = Color.White,
+                                        tint = scheme.onVideo,
                                         modifier = Modifier.size(32.dp),
                                     )
                                 }
@@ -431,7 +441,7 @@ fun PlayerScreen(
                                     modifier = Modifier
                                         .size(64.dp)
                                         .clip(CircleShape)
-                                        .background(Color.White.copy(alpha = 0.16f)),
+                                        .background(scheme.onVideo.copy(alpha = 0.16f)),
                                 ) {
                                     Icon(
                                         imageVector = if (state.playWhenReady && state.isPlaying) {
@@ -442,7 +452,7 @@ fun PlayerScreen(
                                         contentDescription = stringResource(
                                             if (state.playWhenReady) R.string.player_pause else R.string.player_play,
                                         ),
-                                        tint = Color.White,
+                                        tint = scheme.onVideo,
                                         modifier = Modifier.size(40.dp),
                                     )
                                 }
@@ -450,7 +460,7 @@ fun PlayerScreen(
                                     Icon(
                                         Icons.Rounded.Forward10,
                                         contentDescription = stringResource(R.string.player_forward),
-                                        tint = Color.White,
+                                        tint = scheme.onVideo,
                                         modifier = Modifier.size(32.dp),
                                     )
                                 }
@@ -464,7 +474,7 @@ fun PlayerScreen(
                                 if (info?.isLive == true) {
                                     Text(
                                         text = stringResource(R.string.player_live),
-                                        color = Color(0xFFFF6B66),
+                                        color = scheme.liveText,
                                         style = MaterialTheme.typography.labelMedium,
                                         fontWeight = FontWeight.Bold,
                                     )
@@ -474,7 +484,7 @@ fun PlayerScreen(
                                         durationMs = state.durationMs,
                                         bufferedMs = state.bufferedMs,
                                         onSeek = viewModel::seekTo,
-    )
+                                    )
                                     Row(
                                         modifier = Modifier.fillMaxWidth(),
                                         horizontalArrangement = Arrangement.SpaceBetween,
@@ -482,12 +492,12 @@ fun PlayerScreen(
                                         Text(
                                             text = formatDuration((state.positionMs / 1000).toInt()),
                                             style = MaterialTheme.typography.labelSmall,
-                                            color = Color.White,
+                                            color = scheme.onVideo,
                                         )
                                         Text(
                                             text = formatDuration((state.durationMs / 1000).toInt()),
                                             style = MaterialTheme.typography.labelSmall,
-                                            color = Color.White.copy(alpha = 0.7f),
+                                            color = scheme.onVideo.copy(alpha = 0.7f),
                                         )
                                     }
                                 }
@@ -497,10 +507,10 @@ fun PlayerScreen(
                 }
 
                 if (!fullscreen) {
-                    AnimatedVisibility(visible = state.notice != null) {
+                    androidx.compose.animation.AnimatedVisibility(visible = state.notice != null) {
                         Surface(
-                            color = MaterialTheme.colorScheme.primaryContainer,
-                            contentColor = Color.White,
+                            color = scheme.primaryContainer,
+                            contentColor = scheme.onPrimaryContainer,
                             modifier = Modifier.fillMaxWidth(),
                         ) {
                             Text(
@@ -531,7 +541,7 @@ fun PlayerScreen(
                             Text(
                                 text = meta,
                                 style = MaterialTheme.typography.bodySmall,
-                                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                color = scheme.onSurfaceVariant,
                             )
                         }
                         if (info?.uploader != null) {
@@ -557,14 +567,14 @@ fun PlayerScreen(
                                     Icon(
                                         Icons.Rounded.ThumbUp,
                                         contentDescription = null,
-                                        tint = MaterialTheme.colorScheme.onSurfaceVariant,
+                                        tint = scheme.onSurfaceVariant,
                                         modifier = Modifier.size(16.dp),
                                     )
                                     Spacer(Modifier.width(4.dp))
                                     Text(
                                         text = CompactNumber.format(info.likeCount),
                                         style = MaterialTheme.typography.bodySmall,
-                                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                        color = scheme.onSurfaceVariant,
                                     )
                                 }
                             }
@@ -622,7 +632,7 @@ fun PlayerScreen(
                         }
                         if (info?.description != null) {
                             Surface(
-                                color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.4f),
+                                color = scheme.surfaceContainer,
                                 shape = RoundedCornerShape(12.dp),
                                 modifier = Modifier.fillMaxWidth(),
                             ) {
@@ -644,13 +654,13 @@ fun PlayerScreen(
                                                 Icons.Rounded.ExpandMore
                                             },
                                             contentDescription = null,
-                                            tint = MaterialTheme.colorScheme.onSurfaceVariant,
+                                            tint = scheme.onSurfaceVariant,
                                         )
                                     }
                                     Text(
                                         text = info.description,
                                         style = MaterialTheme.typography.bodySmall,
-                                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                        color = scheme.onSurfaceVariant,
                                         maxLines = if (descriptionExpanded) Int.MAX_VALUE else 2,
                                         overflow = TextOverflow.Ellipsis,
                                         modifier = Modifier.padding(top = 4.dp),
@@ -683,6 +693,7 @@ private fun SeekBar(
     onSeek: (Long) -> Unit,
 ) {
     val primary = MaterialTheme.colorScheme.primary
+    val onVideo = MaterialTheme.colorScheme.onVideo
     var dragFraction by remember { mutableStateOf<Float?>(null) }
     val fraction = dragFraction
         ?: if (durationMs > 0) (positionMs.toFloat() / durationMs).coerceIn(0f, 1f) else 0f
@@ -720,14 +731,14 @@ private fun SeekBar(
         val trackHeight = 4.dp.toPx()
         val radius = CornerRadius(trackHeight / 2)
         drawRoundRect(
-            color = Color.White.copy(alpha = 0.24f),
+            color = onVideo.copy(alpha = 0.24f),
             topLeft = Offset(0f, centerY - trackHeight / 2),
             size = Size(size.width, trackHeight),
             cornerRadius = radius,
         )
         if (bufferedFraction > 0f) {
             drawRoundRect(
-                color = Color.White.copy(alpha = 0.45f),
+                color = onVideo.copy(alpha = 0.45f),
                 topLeft = Offset(0f, centerY - trackHeight / 2),
                 size = Size(size.width * bufferedFraction, trackHeight),
                 cornerRadius = radius,
@@ -742,7 +753,7 @@ private fun SeekBar(
             )
         }
         val thumbX = size.width * fraction
-        drawCircle(Color.White, radius = 7.dp.toPx(), center = Offset(thumbX, centerY))
+        drawCircle(onVideo, radius = 7.dp.toPx(), center = Offset(thumbX, centerY))
         drawCircle(primary, radius = 5.dp.toPx(), center = Offset(thumbX, centerY))
     }
 }
@@ -758,7 +769,7 @@ private fun OverlayMenu(
         TextButton(onClick = { expanded = true }) {
             Text(
                 text = label,
-                color = Color.White,
+                color = MaterialTheme.colorScheme.onVideo,
                 style = MaterialTheme.typography.labelLarge,
                 maxLines = 1,
             )
@@ -779,19 +790,16 @@ private fun OverlayMenu(
 
 @Composable
 private fun ActionChip(
-    icon: androidx.compose.ui.graphics.vector.ImageVector,
+    icon: ImageVector,
     label: String,
     active: Boolean = false,
     onClick: () -> Unit,
 ) {
+    val scheme = MaterialTheme.colorScheme
     Surface(
         shape = RoundedCornerShape(20.dp),
-        color = if (active) {
-            MaterialTheme.colorScheme.primaryContainer
-        } else {
-            MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f)
-        },
-        contentColor = if (active) Color.White else MaterialTheme.colorScheme.onSurface,
+        color = if (active) scheme.primaryContainer else scheme.surfaceContainerHigh,
+        contentColor = if (active) scheme.onPrimaryContainer else scheme.onSurface,
         modifier = Modifier.clickable(onClick = onClick),
     ) {
         Row(
@@ -807,6 +815,7 @@ private fun ActionChip(
 
 @Composable
 private fun RelatedRow(item: FeedItem, onClick: () -> Unit) {
+    val scheme = MaterialTheme.colorScheme
     Row(
         modifier = Modifier
             .fillMaxWidth()
@@ -820,7 +829,7 @@ private fun RelatedRow(item: FeedItem, onClick: () -> Unit) {
                 .width(128.dp)
                 .aspectRatio(16f / 9f)
                 .clip(RoundedCornerShape(8.dp))
-                .background(MaterialTheme.colorScheme.surfaceVariant),
+                .background(scheme.surfaceVariant),
         ) {
             if (item.thumbnailUrl != null) {
                 AsyncImage(
@@ -832,8 +841,8 @@ private fun RelatedRow(item: FeedItem, onClick: () -> Unit) {
             }
             if (item.durationSeconds > 0) {
                 Surface(
-                    color = Color.Black.copy(alpha = 0.75f),
-                    contentColor = Color.White,
+                    color = scheme.videoScrim.copy(alpha = 0.75f),
+                    contentColor = scheme.onVideo,
                     shape = RoundedCornerShape(4.dp),
                     modifier = Modifier
                         .align(Alignment.BottomEnd)
@@ -864,7 +873,7 @@ private fun RelatedRow(item: FeedItem, onClick: () -> Unit) {
                 Text(
                     text = sub,
                     style = MaterialTheme.typography.bodySmall,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    color = scheme.onSurfaceVariant,
                     maxLines = 1,
                     overflow = TextOverflow.Ellipsis,
                 )
@@ -875,10 +884,11 @@ private fun RelatedRow(item: FeedItem, onClick: () -> Unit) {
 
 @Composable
 private fun AudioStage(info: StreamInfo?) {
+    val scheme = MaterialTheme.colorScheme
     Box(
         modifier = Modifier
             .fillMaxSize()
-            .background(MaterialTheme.colorScheme.surfaceVariant),
+            .background(scheme.surfaceVariant),
         contentAlignment = Alignment.Center,
     ) {
         if (info?.thumbnailUrl != null) {
@@ -891,20 +901,20 @@ private fun AudioStage(info: StreamInfo?) {
             Box(
                 modifier = Modifier
                     .fillMaxSize()
-                    .background(Color.Black.copy(alpha = 0.55f)),
+                    .background(scheme.videoScrim.copy(alpha = 0.55f)),
             )
         }
         Column(horizontalAlignment = Alignment.CenterHorizontally) {
             Icon(
                 imageVector = Icons.Rounded.MusicNote,
                 contentDescription = null,
-                tint = MaterialTheme.colorScheme.primary,
+                tint = scheme.primary,
                 modifier = Modifier.size(48.dp),
             )
             Text(
                 text = stringResource(R.string.player_audio_stage),
                 style = MaterialTheme.typography.bodySmall,
-                color = Color.White,
+                color = scheme.onVideo,
             )
         }
     }

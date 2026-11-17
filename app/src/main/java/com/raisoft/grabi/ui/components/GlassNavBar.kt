@@ -18,7 +18,6 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.shadow
 import androidx.compose.ui.graphics.Brush
-import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
@@ -31,6 +30,7 @@ fun GlassNavBar(
     modifier: Modifier = Modifier,
 ) {
     val shape = RoundedCornerShape(30.dp)
+    val scheme = MaterialTheme.colorScheme
     Row(
         modifier = modifier
             .fillMaxWidth()
@@ -40,13 +40,19 @@ fun GlassNavBar(
             .clip(shape)
             .background(
                 Brush.verticalGradient(
-                    listOf(Color(0xF015181E), Color(0xD90B0D10)),
+                    listOf(
+                        scheme.surfaceContainerHigh.copy(alpha = 0.94f),
+                        scheme.surfaceContainer.copy(alpha = 0.88f),
+                    ),
                 ),
             )
             .border(
                 width = 1.dp,
                 brush = Brush.verticalGradient(
-                    listOf(Color(0x33FFFFFF), Color(0x0DFFFFFF)),
+                    listOf(
+                        scheme.outlineVariant.copy(alpha = 0.55f),
+                        scheme.outlineVariant.copy(alpha = 0.15f),
+                    ),
                 ),
                 shape = shape,
             )
@@ -68,7 +74,12 @@ fun GlassNavBar(
                                 ),
                             )
                         } else {
-                            Brush.radialGradient(listOf(Color.Transparent, Color.Transparent))
+                            Brush.radialGradient(
+                                listOf(
+                                    MaterialTheme.colorScheme.primary.copy(alpha = 0f),
+                                    MaterialTheme.colorScheme.primary.copy(alpha = 0f),
+                                ),
+                            )
                         },
                     )
                     .clickable { onSelect(destination) }

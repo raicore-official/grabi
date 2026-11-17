@@ -94,6 +94,10 @@ class BrowserViewModel @Inject constructor(
         viewModelScope.launch { downloadManager.enqueue(media.url, title, option, false) }
     }
 
+    fun applyTheme(dark: Boolean, backgroundArgb: Int) {
+        tabManager.applyThemeToAll(dark, backgroundArgb)
+    }
+
     fun toggleSiteAllowlist() {
         val host = activeTab.value?.url
             ?.let { runCatching { URI(it).host }.getOrNull() }
