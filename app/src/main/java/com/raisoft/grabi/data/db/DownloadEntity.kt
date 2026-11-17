@@ -1,5 +1,6 @@
 package com.raisoft.grabi.data.db
 
+import androidx.room.ColumnInfo
 import androidx.room.Entity
 import androidx.room.PrimaryKey
 
@@ -21,4 +22,5 @@ data class DownloadEntity(
     val contentUri: String?,
     val error: String?,
     val createdAt: Long,
+    @ColumnInfo(defaultValue = "") val videoId: String = "",
 )

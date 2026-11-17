@@ -7,11 +7,13 @@ import androidx.media3.common.AudioAttributes
 import androidx.media3.common.C
 import androidx.media3.common.MediaItem
 import androidx.media3.common.MimeTypes
+import androidx.media3.common.Player
 import androidx.media3.common.util.UnstableApi
 import androidx.media3.common.util.Util
 import androidx.media3.datasource.DataSource
 import androidx.media3.datasource.DefaultDataSource
-import androidx.media3.datasource.DefaultHttpDataSource
+import androidx.media3.datasource.okhttp.OkHttpDataSource
+import androidx.media3.exoplayer.DefaultLoadControl
 import androidx.media3.exoplayer.DefaultRenderersFactory
 import androidx.media3.exoplayer.ExoPlayer
 import androidx.media3.exoplayer.dash.DashMediaSource
@@ -26,10 +28,14 @@ import androidx.media3.session.SessionResult
 import com.google.common.util.concurrent.Futures
 import com.google.common.util.concurrent.ListenableFuture
 import dagger.hilt.android.AndroidEntryPoint
+import javax.inject.Inject
+import okhttp3.OkHttpClient
 
 @OptIn(UnstableApi::class)
 @AndroidEntryPoint
 class PlaybackService : MediaSessionService() {
+
+    @Inject lateinit var httpClient: OkHttpClient
 
     private var session: MediaSession? = null
 
@@ -37,6 +43,11 @@ class PlaybackService : MediaSessionService() {
         super.onCreate()
         val player = ExoPlayer.Builder(this)
             .setRenderersFactory(DefaultRenderersFactory(this).setEnableDecoderFallback(true))
+            .setLoadControl(
+                DefaultLoadControl.Builder()
+                    .setBufferDurationsMs(15_000, 50_000, 1_000, 2_500)
+                    .build(),
+            )
             .setWakeMode(C.WAKE_MODE_NETWORK)
             .setHandleAudioBecomingNoisy(true)
             .setAudioAttributes(
@@ -47,6 +58,17 @@ class PlaybackService : MediaSessionService() {
                 true,
             )
             .build()
+        player.addListener(
+            object : Player.Listener {
+                override fun onPlaybackStateChanged(state: Int) {
+                    DebugLog.line("player state=$state")
+                }
+
+                override fun onPlayerError(error: androidx.media3.common.PlaybackException) {
+                    DebugLog.line("player error ${error.errorCodeName}: ${error.message}")
+                }
+            },
+        )
         session = MediaSession.Builder(this, player)
             .setCallback(SessionCallback(player))
             .build()
@@ -141,7 +163,7 @@ class PlaybackService : MediaSessionService() {
 
     private fun dataSourceFactory(url: String): DataSource.Factory =
         if (url.startsWith("http")) {
-            DefaultHttpDataSource.Factory()
+            OkHttpDataSource.Factory(httpClient)
                 .setUserAgent(Util.getUserAgent(this, "Grabi"))
                 .setAllowCrossProtocolRedirects(true)
                 .setConnectTimeoutMs(15_000)

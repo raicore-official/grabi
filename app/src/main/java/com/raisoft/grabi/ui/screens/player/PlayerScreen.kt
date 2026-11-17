@@ -37,6 +37,7 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.rounded.ArrowBack
 import androidx.compose.material.icons.rounded.ClosedCaption
 import androidx.compose.material.icons.rounded.ClosedCaptionDisabled
+import androidx.compose.material.icons.rounded.Check
 import androidx.compose.material.icons.rounded.Download
 import androidx.compose.material.icons.rounded.ErrorOutline
 import androidx.compose.material.icons.rounded.ExpandLess
@@ -72,6 +73,7 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.geometry.CornerRadius
 import androidx.compose.ui.geometry.Offset
@@ -96,6 +98,7 @@ import androidx.media3.ui.PlayerView
 import coil.compose.AsyncImage
 import com.raisoft.grabi.R
 import com.raisoft.grabi.domain.CompactNumber
+import com.raisoft.grabi.domain.model.DownloadStatus
 import com.raisoft.grabi.domain.model.FeedItem
 import com.raisoft.grabi.domain.model.StreamInfo
 import com.raisoft.grabi.ui.components.EmptyState
@@ -203,6 +206,15 @@ fun PlayerScreen(
                 modifier = Modifier.fillMaxSize(),
                 contentAlignment = Alignment.Center,
             ) {
+                val thumb = state.info?.thumbnailUrl ?: state.thumbnailUrl
+                if (thumb != null) {
+                    AsyncImage(
+                        model = thumb,
+                        contentDescription = null,
+                        contentScale = ContentScale.Crop,
+                        modifier = Modifier.fillMaxSize().alpha(0.35f),
+                    )
+                }
                 CircularProgressIndicator()
             }
             error != null -> Column(Modifier.fillMaxSize()) {
@@ -583,10 +595,31 @@ fun PlayerScreen(
                             modifier = Modifier.horizontalScroll(rememberScrollState()),
                             horizontalArrangement = Arrangement.spacedBy(8.dp),
                         ) {
+                            val dl by viewModel.downloadState.collectAsStateWithLifecycle()
+                            val dlActive = dl != null && dl!!.status in setOf(
+                                DownloadStatus.RUNNING.name,
+                                DownloadStatus.QUEUED.name,
+                                DownloadStatus.PAUSED.name,
+                                DownloadStatus.WAITING_WIFI.name,
+                            )
+                            val dlDone = dl != null && dl!!.status == DownloadStatus.DONE.name
                             ActionChip(
-                                icon = Icons.Rounded.Download,
-                                label = stringResource(R.string.player_download),
-                                onClick = viewModel::download,
+                                icon = if (dlDone) Icons.Rounded.Check else Icons.Rounded.Download,
+                                label = when {
+                                    dlDone -> stringResource(R.string.player_downloaded)
+                                    dlActive && dl!!.status == DownloadStatus.PAUSED.name ->
+                                        stringResource(R.string.status_paused)
+                                    dlActive ->
+                                        "${((dl!!.progress) * 100).toInt()}%"
+                                    else -> stringResource(R.string.player_download)
+                                },
+                                onClick = {
+                                    when {
+                                        dlDone -> viewModel.playOffline()
+                                        dlActive -> viewModel.pauseResumeDownload()
+                                        else -> viewModel.download()
+                                    }
+                                },
                             )
                             ActionChip(
                                 icon = Icons.Rounded.MusicNote,

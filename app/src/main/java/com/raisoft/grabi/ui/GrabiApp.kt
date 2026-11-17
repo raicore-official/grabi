@@ -38,8 +38,10 @@ fun GrabiApp(pendingLink: PendingLink) {
     val currentRoute = backStackEntry?.destination?.route
     val showBottomBar = currentRoute?.startsWith("player") != true && currentRoute != "vpn"
 
-    fun openPlayer(url: String, title: String) {
-        navController.navigate("player?url=${Uri.encode(url)}&title=${Uri.encode(title)}")
+    fun openPlayer(url: String, title: String, thumb: String = "") {
+        navController.navigate(
+            "player?url=${Uri.encode(url)}&title=${Uri.encode(title)}&thumb=${Uri.encode(thumb)}",
+        )
     }
 
     fun openGrab() {
@@ -109,15 +111,16 @@ fun GrabiApp(pendingLink: PendingLink) {
                 VpnScreen(onBack = { navController.popBackStack() })
             }
             composable(
-                route = "player?url={url}&title={title}",
+                route = "player?url={url}&title={title}&thumb={thumb}",
                 arguments = listOf(
                     navArgument("url") { defaultValue = "" },
                     navArgument("title") { defaultValue = "" },
+                    navArgument("thumb") { defaultValue = "" },
                 ),
             ) {
                 PlayerScreen(
                     onBack = { navController.popBackStack() },
-                    onOpenPlayer = ::openPlayer,
+                    onOpenPlayer = { u, t -> openPlayer(u, t) },
                 )
             }
         }

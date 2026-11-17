@@ -8,7 +8,7 @@ import javax.inject.Singleton
 @Singleton
 class StreamCache @Inject constructor() {
 
-    var ttlMs: Long = 20 * 60 * 1000L
+    var ttlMs: Long = 90 * 60 * 1000L
 
     private data class Entry(val info: StreamInfo, val savedAt: Long)
 

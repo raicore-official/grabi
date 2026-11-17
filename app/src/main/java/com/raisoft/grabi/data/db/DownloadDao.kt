@@ -15,6 +15,9 @@ interface DownloadDao {
     @Query("SELECT * FROM downloads WHERE id = :id")
     suspend fun byId(id: String): DownloadEntity?
 
+    @Query("SELECT * FROM downloads WHERE videoId = :videoId AND kind = :kind AND status = 'DONE' ORDER BY createdAt DESC")
+    suspend fun doneByVideoId(videoId: String, kind: String): List<DownloadEntity>
+
     @Query("SELECT * FROM downloads WHERE status = 'QUEUED' ORDER BY createdAt ASC")
     suspend fun pending(): List<DownloadEntity>
 

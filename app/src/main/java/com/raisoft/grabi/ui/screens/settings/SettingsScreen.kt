@@ -42,6 +42,7 @@ import androidx.core.content.FileProvider
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.raisoft.grabi.R
+import com.raisoft.grabi.data.playback.DebugLog
 import com.raisoft.grabi.data.settings.ThemeMode
 import java.io.File
 import java.util.Date
@@ -408,6 +409,30 @@ fun SettingsScreen(onOpenVpn: () -> Unit = {}, viewModel: SettingsViewModel = hi
                                 Text(stringResource(R.string.settings_crash_clear))
                             }
                         }
+                    }
+                    TextButton(
+                        onClick = {
+                            runCatching {
+                                val file = File(context.filesDir, "debug-log.txt")
+                                if (!file.exists()) file.writeText(DebugLog.read())
+                                val uri = FileProvider.getUriForFile(
+                                    context,
+                                    "${context.packageName}.fileprovider",
+                                    file,
+                                )
+                                context.startActivity(
+                                    Intent.createChooser(
+                                        Intent(Intent.ACTION_SEND)
+                                            .setType("text/plain")
+                                            .putExtra(Intent.EXTRA_STREAM, uri)
+                                            .addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION),
+                                        context.getString(R.string.settings_debug_log),
+                                    ),
+                                )
+                            }
+                        },
+                    ) {
+                        Text(stringResource(R.string.settings_debug_log))
                     }
                     TextButton(
                         onClick = {

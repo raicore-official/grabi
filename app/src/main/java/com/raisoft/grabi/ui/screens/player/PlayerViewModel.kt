@@ -15,15 +15,20 @@ import androidx.media3.datasource.HttpDataSource
 import androidx.media3.session.MediaController
 import androidx.media3.session.SessionCommand
 import androidx.media3.session.SessionToken
+import com.raisoft.grabi.data.db.DownloadEntity
 import com.raisoft.grabi.data.db.FavoriteEntity
 import com.raisoft.grabi.data.db.HistoryEntity
 import com.raisoft.grabi.data.db.LibraryDao
 import com.raisoft.grabi.data.download.DownloadManager
 import com.raisoft.grabi.data.download.YtDlpEngine
+import com.raisoft.grabi.data.playback.DebugLog
 import com.raisoft.grabi.data.playback.PlaybackRetryPolicy
 import com.raisoft.grabi.data.playback.PlaybackService
 import com.raisoft.grabi.data.stream.StreamRepository
+import com.raisoft.grabi.domain.MediaFormatMapper
 import com.raisoft.grabi.domain.StreamOptionMapper
+import com.raisoft.grabi.domain.VideoIds
+import com.raisoft.grabi.domain.model.DownloadStatus
 import com.raisoft.grabi.domain.model.MediaKind
 import com.raisoft.grabi.domain.model.MediaOption
 import com.raisoft.grabi.domain.model.StreamInfo
@@ -32,16 +37,21 @@ import dagger.hilt.android.qualifiers.ApplicationContext
 import javax.inject.Inject
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.SharingStarted
+import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.isActive
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.withTimeoutOrNull
 
 data class PlayerUiState(
     val loading: Boolean = true,
     val error: String? = null,
     val notice: String? = null,
     val info: StreamInfo? = null,
+    val thumbnailUrl: String? = null,
     val selectedVideoId: String? = null,
     val selectedAudioId: String? = null,
     val audioOnly: Boolean = false,
@@ -68,9 +78,14 @@ class PlayerViewModel @Inject constructor(
 
     val url: String = savedStateHandle.get<String>("url").orEmpty()
     private val fallbackTitle: String = savedStateHandle.get<String>("title").orEmpty()
+    private val videoId: String = VideoIds.of(url)
 
-    private val _ui = MutableStateFlow(PlayerUiState())
+    private val _ui = MutableStateFlow(PlayerUiState(thumbnailUrl = savedStateHandle.get<String>("thumb")))
     val ui = _ui.asStateFlow()
+
+    val downloadState: StateFlow<DownloadEntity?> =
+        downloadManager.statesForKey(videoId, MediaKind.VIDEO.name)
+            .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), null)
 
     private val _controller = MutableStateFlow<MediaController?>(null)
     val controller = _controller.asStateFlow()
@@ -86,6 +101,7 @@ class PlayerViewModel @Inject constructor(
             }
         }
         connectController()
+        viewModelScope.launch { loadStream() }
         viewModelScope.launch {
             while (isActive) {
                 delay(500)
@@ -118,7 +134,6 @@ class PlayerViewModel @Inject constructor(
                     .onSuccess { controller ->
                         controller.addListener(playerListener)
                         _controller.value = controller
-                        loadStream()
                     }
                     .onFailure { error ->
                         _ui.update {
@@ -141,6 +156,7 @@ class PlayerViewModel @Inject constructor(
         }
 
         override fun onPlaybackStateChanged(state: Int) {
+            DebugLog.line("player ui state=$state video=$videoId")
             _ui.update { it.copy(buffering = state == Player.STATE_BUFFERING) }
             if (state == Player.STATE_READY) {
                 recoveryAttempt = 0
@@ -150,6 +166,7 @@ class PlayerViewModel @Inject constructor(
         }
 
         override fun onPlayerError(error: PlaybackException) {
+            DebugLog.line("player ui error ${error.errorCodeName}: ${error.message}")
             handlePlaybackError(error)
         }
     }
@@ -239,7 +256,9 @@ class PlayerViewModel @Inject constructor(
 
     private fun loadStream(forceRefresh: Boolean = false) {
         viewModelScope.launch {
-            val info = runCatching { streamRepository.resolve(url, forceRefresh) }
+            val local = downloadManager.localFileFor(videoId, MediaKind.VIDEO.name)
+            val target = local ?: url
+            val info = runCatching { streamRepository.resolve(target, forceRefresh) }
                 .getOrElse { error ->
                     _ui.update {
                         it.copy(
@@ -251,30 +270,45 @@ class PlayerViewModel @Inject constructor(
                     }
                     return@launch
                 }
+            val shown = if (local != null) {
+                info.copy(title = fallbackTitle.ifBlank { info.title })
+            } else {
+                info
+            }
             val resumePosition = libraryDao.historyByUrl(url)?.positionMs ?: 0L
             lastKnownPositionMs = resumePosition
+            val fastStart = shown.videoOptions.firstOrNull {
+                it.audioUrl == null && it.height in 1..720 && it.mimeType?.contains("mp4") == true
+            } ?: shown.videoOptions.firstOrNull { it.audioUrl == null && it.height in 1..720 }
             _ui.update {
                 it.copy(
                     loading = false,
-                    info = info,
-                    selectedVideoId = it.selectedVideoId ?: info.videoOptions.firstOrNull()?.id,
-                    selectedAudioId = it.selectedAudioId ?: info.audioOptions.firstOrNull()?.id,
-                    captionsEnabled = info.subtitleUrl != null,
+                    info = shown,
+                    thumbnailUrl = it.thumbnailUrl ?: shown.thumbnailUrl,
+                    selectedVideoId = it.selectedVideoId ?: fastStart?.id
+                        ?: shown.videoOptions.firstOrNull()?.id,
+                    selectedAudioId = it.selectedAudioId ?: shown.audioOptions.firstOrNull()?.id,
+                    captionsEnabled = shown.subtitleUrl != null,
                 )
             }
             libraryDao.upsertHistory(
                 HistoryEntity(
                     url = url,
-                    title = info.title,
-                    uploader = info.uploader,
-                    thumbnailUrl = info.thumbnailUrl,
-                    durationSeconds = info.durationSeconds,
+                    title = shown.title,
+                    uploader = shown.uploader,
+                    thumbnailUrl = shown.thumbnailUrl,
+                    durationSeconds = shown.durationSeconds,
                     positionMs = resumePosition,
                     watchedAt = System.currentTimeMillis(),
                 ),
             )
-            applyMedia(resumePosition)
+            if (awaitController() != null) applyMedia(resumePosition)
         }
+    }
+
+    private suspend fun awaitController(): MediaController? = withTimeoutOrNull(10_000) {
+        while (_controller.value == null) delay(50)
+        _controller.value
     }
 
     fun togglePlay() {
@@ -347,21 +381,43 @@ class PlayerViewModel @Inject constructor(
 
     fun download() {
         val title = _ui.value.info?.title ?: fallbackTitle
+        val label = _ui.value.info?.videoOptions
+            ?.firstOrNull { it.id == _ui.value.selectedVideoId }?.label ?: "Best"
         viewModelScope.launch {
             downloadManager.enqueue(
                 url = url,
                 title = title,
                 option = MediaOption(
                     id = "best",
-                    label = "Best",
+                    label = label,
                     kind = MediaKind.VIDEO,
-                    formatSelector = "bestvideo+bestaudio/best",
+                    formatSelector = MediaFormatMapper.AVC_VIDEO_SELECTOR,
                     audioFormat = null,
                     sizeBytes = null,
                 ),
                 subtitles = false,
+                videoId = videoId,
             )
             _ui.update { it.copy(notice = "Download queued") }
+        }
+    }
+
+    fun pauseResumeDownload() {
+        val entity = downloadState.value ?: return
+        if (entity.status == DownloadStatus.PAUSED.name) {
+            downloadManager.resume(entity.id)
+        } else {
+            downloadManager.pause(entity.id)
+        }
+    }
+
+    fun playOffline() {
+        viewModelScope.launch {
+            val local = downloadManager.localFileFor(videoId, MediaKind.VIDEO.name)
+            if (local != null) {
+                sendMedia(local, null, currentPosition())
+                _ui.update { it.copy(notice = "Playing downloaded file") }
+            }
         }
     }
 

@@ -45,7 +45,11 @@ class MediaFormatMapperTest {
     @Test
     fun videoSelectorMergesBestAudio() {
         val video = MediaFormatMapper.options(listOf(spec(720))).first()
-        assertEquals("bestvideo[height<=720]+bestaudio/best[height<=720]", video.formatSelector)
+        assertEquals(
+            "bv*[vcodec^=avc1][height<=720][ext=mp4]+ba[ext=m4a]/" +
+                "b[height<=720][ext=mp4]/b[height<=720]",
+            video.formatSelector,
+        )
         assertNull(video.audioFormat)
     }
 

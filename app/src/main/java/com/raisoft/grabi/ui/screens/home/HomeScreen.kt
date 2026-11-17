@@ -24,6 +24,12 @@ import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.rounded.Close
 import androidx.compose.material.icons.rounded.Download
+import androidx.compose.material.icons.rounded.Check
+import androidx.compose.foundation.combinedClickable
+import androidx.compose.material3.CircularProgressIndicator
+import com.raisoft.grabi.data.db.DownloadEntity
+import com.raisoft.grabi.domain.VideoIds
+import com.raisoft.grabi.domain.model.DownloadStatus
 import androidx.compose.material.icons.rounded.Search
 import androidx.compose.material3.ElevatedCard
 import androidx.compose.material3.FilterChip
@@ -74,12 +80,13 @@ private val QUICK_SITES = listOf(
 
 @Composable
 fun HomeScreen(
-    onOpenPlayer: (String, String) -> Unit = { _, _ -> },
+    onOpenPlayer: (String, String, String) -> Unit = { _, _, _ -> },
     onOpenBrowser: () -> Unit = {},
     onGrab: (String) -> Unit = {},
     viewModel: HomeViewModel = hiltViewModel(),
 ) {
     val feed by viewModel.feed.collectAsStateWithLifecycle()
+    val downloadStates by viewModel.downloadStates.collectAsStateWithLifecycle()
     var searchInput by remember { mutableStateOf("") }
 
     LazyColumn(
@@ -233,15 +240,26 @@ fun HomeScreen(
         items(feed.items, key = { it.url }) { item ->
             FeedCard(
                 item = item,
-                onOpen = { onOpenPlayer(item.url, item.title) },
+                download = downloadStates[VideoIds.of(item.url)],
+                onOpen = { onOpenPlayer(item.url, item.title, item.thumbnailUrl.orEmpty()) },
                 onDownload = { onGrab(item.url) },
+                onPauseResume = { viewModel.pauseResumeDownload(it.id) },
+                onDelete = { viewModel.deleteDownload(it.id) },
             )
         }
     }
 }
 
+@OptIn(androidx.compose.foundation.ExperimentalFoundationApi::class)
 @Composable
-private fun FeedCard(item: FeedItem, onOpen: () -> Unit, onDownload: () -> Unit) {
+private fun FeedCard(
+    item: FeedItem,
+    download: DownloadEntity?,
+    onOpen: () -> Unit,
+    onDownload: () -> Unit,
+    onPauseResume: (DownloadEntity) -> Unit,
+    onDelete: (DownloadEntity) -> Unit,
+) {
     ElevatedCard(onClick = onOpen, modifier = Modifier.fillMaxWidth()) {
         Column {
             Box(
@@ -327,12 +345,45 @@ private fun FeedCard(item: FeedItem, onOpen: () -> Unit, onDownload: () -> Unit)
                         overflow = TextOverflow.Ellipsis,
                         modifier = Modifier.weight(1f),
                     )
-                    IconButton(onClick = onDownload) {
-                        Icon(
-                            imageVector = Icons.Rounded.Download,
-                            contentDescription = stringResource(R.string.home_download_button),
-                            tint = MaterialTheme.colorScheme.primary,
-                        )
+                    val active = download != null && download.status in setOf(
+                        DownloadStatus.RUNNING.name,
+                        DownloadStatus.QUEUED.name,
+                        DownloadStatus.PAUSED.name,
+                        DownloadStatus.WAITING_WIFI.name,
+                    )
+                    val done = download != null && download.status == DownloadStatus.DONE.name
+                    Box(
+                        modifier = Modifier
+                            .size(40.dp)
+                            .combinedClickable(
+                                onClick = {
+                                    when {
+                                        active -> onPauseResume(download!!)
+                                        done -> onOpen()
+                                        else -> onDownload()
+                                    }
+                                },
+                                onLongClick = { if (done) onDelete(download!!) },
+                            ),
+                        contentAlignment = Alignment.Center,
+                    ) {
+                        when {
+                            active -> CircularProgressIndicator(
+                                progress = { download!!.progress },
+                                modifier = Modifier.size(22.dp),
+                                strokeWidth = 2.dp,
+                            )
+                            done -> Icon(
+                                imageVector = Icons.Rounded.Check,
+                                contentDescription = stringResource(R.string.home_downloaded),
+                                tint = MaterialTheme.colorScheme.primary,
+                            )
+                            else -> Icon(
+                                imageVector = Icons.Rounded.Download,
+                                contentDescription = stringResource(R.string.home_download_button),
+                                tint = MaterialTheme.colorScheme.primary,
+                            )
+                        }
                     }
                 }
             }

@@ -10,6 +10,7 @@ import com.raisoft.grabi.data.crash.CrashHandler
 import com.raisoft.grabi.data.download.DownloadManager
 import com.raisoft.grabi.data.download.QueueRecoveryWorker
 import com.raisoft.grabi.data.download.YtDlpEngine
+import com.raisoft.grabi.data.playback.DebugLog
 import com.raisoft.grabi.data.playback.OkHttpDownloader
 import com.raisoft.grabi.data.vpn.VpnRepository
 import dagger.hilt.android.HiltAndroidApp
@@ -25,6 +26,7 @@ class GrabiApplication : Application() {
 
     @Inject lateinit var engine: YtDlpEngine
     @Inject lateinit var downloadManager: DownloadManager
+    @Inject lateinit var okHttpDownloader: OkHttpDownloader
 
     // Created eagerly so the always-on VPN callback is registered at process start.
     @Inject lateinit var vpnRepository: VpnRepository
@@ -34,7 +36,8 @@ class GrabiApplication : Application() {
     override fun onCreate() {
         super.onCreate()
         CrashHandler.install(this)
-        NewPipe.init(OkHttpDownloader())
+        DebugLog.init(this)
+        NewPipe.init(okHttpDownloader)
         applicationScope.launch { runCatching { engine.warmUp() } }
         applicationScope.launch { downloadManager.recoverAndPump() }
         WorkManager.getInstance(this).enqueueUniqueWork(

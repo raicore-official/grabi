@@ -30,6 +30,12 @@ import androidx.compose.material.icons.automirrored.rounded.ArrowForward
 import androidx.compose.material.icons.rounded.Audiotrack
 import androidx.compose.material.icons.rounded.Close
 import androidx.compose.material.icons.rounded.Download
+import androidx.compose.material.icons.rounded.Check
+import androidx.compose.foundation.combinedClickable
+import androidx.compose.material3.CircularProgressIndicator
+import com.raisoft.grabi.data.db.DownloadEntity
+import com.raisoft.grabi.domain.VideoIds
+import com.raisoft.grabi.domain.model.DownloadStatus
 import androidx.compose.material.icons.rounded.Image
 import androidx.compose.material.icons.rounded.MoreVert
 import androidx.compose.material.icons.rounded.Refresh
@@ -106,6 +112,7 @@ fun BrowserScreen(
     val settings by viewModel.settings.collectAsStateWithLifecycle()
     val history by viewModel.history.collectAsStateWithLifecycle()
     val adblockUpdating by viewModel.adblockUpdating.collectAsStateWithLifecycle()
+    val downloadStates by viewModel.downloadStates.collectAsStateWithLifecycle()
     val keyboard = LocalSoftwareKeyboardController.current
 
     val dark = settings.themeMode.resolveDark(isSystemInDarkTheme())
@@ -486,7 +493,12 @@ fun BrowserScreen(
                             verticalArrangement = Arrangement.spacedBy(8.dp),
                         ) {
                             items(avMedia.reversed(), key = { it.url }) { media ->
-                                DetectedRow(media) { viewModel.downloadDetected(media) }
+                                DetectedRow(
+                                media = media,
+                                download = downloadStates[VideoIds.of(media.url)],
+                                onPauseResume = { viewModel.pauseResumeDownload(it.id) },
+                                onDelete = { viewModel.deleteDownload(it.id) },
+                            ) { viewModel.downloadDetected(media) }
                             }
                         }
                     }
@@ -502,7 +514,12 @@ fun BrowserScreen(
                         verticalArrangement = Arrangement.spacedBy(8.dp),
                     ) {
                         items(images.reversed(), key = { it.url }) { media ->
-                            DetectedRow(media) { viewModel.downloadDetected(media) }
+                            DetectedRow(
+                                media = media,
+                                download = downloadStates[VideoIds.of(media.url)],
+                                onPauseResume = { viewModel.pauseResumeDownload(it.id) },
+                                onDelete = { viewModel.deleteDownload(it.id) },
+                            ) { viewModel.downloadDetected(media) }
                         }
                     }
                 }
@@ -622,8 +639,15 @@ private fun SiteGrid(incognito: Boolean, onOpen: (String) -> Unit) {
     }
 }
 
+@OptIn(androidx.compose.foundation.ExperimentalFoundationApi::class)
 @Composable
-private fun DetectedRow(media: DetectedMedia, onDownload: () -> Unit) {
+private fun DetectedRow(
+    media: DetectedMedia,
+    download: DownloadEntity?,
+    onPauseResume: (DownloadEntity) -> Unit,
+    onDelete: (DownloadEntity) -> Unit,
+    onDownload: () -> Unit,
+) {
     Surface(
         shape = RoundedCornerShape(12.dp),
         tonalElevation = 1.dp,
@@ -656,11 +680,44 @@ private fun DetectedRow(media: DetectedMedia, onDownload: () -> Unit) {
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                 )
             }
-            IconButton(onClick = onDownload) {
-                Icon(
-                    Icons.Rounded.Download,
-                    contentDescription = stringResource(R.string.browser_download),
-                )
+            val active = download != null && download.status in setOf(
+                DownloadStatus.RUNNING.name,
+                DownloadStatus.QUEUED.name,
+                DownloadStatus.PAUSED.name,
+                DownloadStatus.WAITING_WIFI.name,
+            )
+            val done = download != null && download.status == DownloadStatus.DONE.name
+            Box(
+                modifier = Modifier
+                    .size(40.dp)
+                    .combinedClickable(
+                        onClick = {
+                            when {
+                                active -> onPauseResume(download!!)
+                                done -> onDelete(download!!)
+                                else -> onDownload()
+                            }
+                        },
+                        onLongClick = { if (done) onDelete(download!!) },
+                    ),
+                contentAlignment = Alignment.Center,
+            ) {
+                when {
+                    active -> CircularProgressIndicator(
+                        progress = { download!!.progress },
+                        modifier = Modifier.size(22.dp),
+                        strokeWidth = 2.dp,
+                    )
+                    done -> Icon(
+                        Icons.Rounded.Check,
+                        contentDescription = stringResource(R.string.home_downloaded),
+                        tint = MaterialTheme.colorScheme.primary,
+                    )
+                    else -> Icon(
+                        Icons.Rounded.Download,
+                        contentDescription = stringResource(R.string.browser_download),
+                    )
+                }
             }
         }
     }

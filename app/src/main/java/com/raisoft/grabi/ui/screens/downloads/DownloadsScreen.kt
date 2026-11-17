@@ -104,7 +104,12 @@ private fun DownloadRow(
                 overflow = TextOverflow.Ellipsis,
             )
             Text(
-                text = entity.optionLabel + " · " + stringResource(status.labelRes()),
+                text = entity.optionLabel + " · " +
+                    if (status == DownloadStatus.RUNNING && entity.progress <= 0f) {
+                        stringResource(R.string.status_starting)
+                    } else {
+                        stringResource(status.labelRes())
+                    },
                 style = MaterialTheme.typography.bodySmall,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
             )

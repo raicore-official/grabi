@@ -6,6 +6,8 @@ import com.raisoft.grabi.domain.model.MediaOption
 
 object MediaFormatMapper {
 
+    const val AVC_VIDEO_SELECTOR = "bv*[vcodec^=avc1][ext=mp4]+ba[ext=m4a]/b[ext=mp4]/b"
+
     fun options(formats: List<FormatSpec>): List<MediaOption> {
         val heights = formats
             .filter { it.vcodec != null && it.vcodec != "none" && it.height > 0 }
@@ -21,7 +23,9 @@ object MediaFormatMapper {
                 id = "video-$height",
                 label = "${height}p",
                 kind = MediaKind.VIDEO,
-                formatSelector = "bestvideo[height<=$height]+bestaudio/best[height<=$height]",
+                formatSelector =
+                    "bv*[vcodec^=avc1][height<=$height][ext=mp4]+ba[ext=m4a]/" +
+                    "b[height<=$height][ext=mp4]/b[height<=$height]",
                 audioFormat = null,
                 sizeBytes = candidates.maxOf { it.sizeBytes }.takeIf { it > 0 },
             )

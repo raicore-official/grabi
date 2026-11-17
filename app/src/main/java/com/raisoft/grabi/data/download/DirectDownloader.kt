@@ -3,30 +3,111 @@ package com.raisoft.grabi.data.download
 import com.yausername.youtubedl_android.YoutubeDL
 import java.io.File
 import java.io.IOException
+import java.io.RandomAccessFile
 import java.util.concurrent.ConcurrentHashMap
-import java.util.concurrent.TimeUnit
+import java.util.concurrent.atomic.AtomicLong
 import javax.inject.Inject
 import javax.inject.Singleton
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.async
+import kotlinx.coroutines.awaitAll
+import kotlinx.coroutines.coroutineScope
 import kotlinx.coroutines.ensureActive
 import kotlinx.coroutines.withContext
 import okhttp3.Call
 import okhttp3.OkHttpClient
 import okhttp3.Request
 
-/** Plain HTTP download for images; yt-dlp does not handle still images. */
+/** Plain HTTP download for images and cached muxed streams; yt-dlp does not handle still images. */
 @Singleton
-class DirectDownloader @Inject constructor() {
+class DirectDownloader @Inject constructor(
+    private val client: OkHttpClient,
+) {
 
-    private val client = OkHttpClient.Builder()
-        .connectTimeout(20, TimeUnit.SECONDS)
-        .readTimeout(30, TimeUnit.SECONDS)
-        .build()
     private val calls = ConcurrentHashMap<String, Call>()
 
     fun cancel(id: String) {
-        calls.remove(id)?.cancel()
+        calls.keys.filter { it == id || it.startsWith("$id-") }.forEach { calls.remove(it)?.cancel() }
+    }
+
+    suspend fun downloadRanges(
+        url: String,
+        target: File,
+        processId: String,
+        onProgress: (percent: Float, etaSeconds: Long, line: String) -> Unit,
+    ): File = withContext(Dispatchers.IO) {
+        val head = client.newCall(Request.Builder().url(url).head().build()).execute()
+        val total = head.header("Content-Length")?.toLongOrNull() ?: -1L
+        val rangeable = head.header("Accept-Ranges") == "bytes"
+        head.close()
+        if (!rangeable || total < 4_000_000L) {
+            return@withContext download(url, target, processId, onProgress)
+        }
+        target.parentFile?.mkdirs()
+        RandomAccessFile(target, "rw").use { it.setLength(total) }
+        val segments = 6
+        val chunk = total / segments
+        val copied = AtomicLong(0)
+        var lastTimestamp = System.currentTimeMillis()
+        var lastBytes = 0L
+        try {
+            coroutineScope {
+                (0 until segments).map { i ->
+                    async {
+                        val start = i * chunk
+                        val end = if (i == segments - 1) total - 1 else start + chunk - 1
+                        val call = client.newCall(
+                            Request.Builder().url(url).header("Range", "bytes=$start-$end").build(),
+                        )
+                        calls["$processId-$i"] = call
+                        call.execute().use { response ->
+                            if (!response.isSuccessful) throw IOException("HTTP ${response.code}")
+                            val body = response.body ?: throw IOException("Empty response body")
+                            RandomAccessFile(target, "rw").use { raf ->
+                                raf.seek(start)
+                                body.byteStream().use { input ->
+                                    val buffer = ByteArray(64 * 1024)
+                                    while (true) {
+                                        ensureActive()
+                                        val read = input.read(buffer)
+                                        if (read < 0) break
+                                        raf.write(buffer, 0, read)
+                                        val done = copied.addAndGet(read.toLong())
+                                        val now = System.currentTimeMillis()
+                                        if (now - lastTimestamp >= 500) {
+                                            val bytesPerSecond =
+                                                (done - lastBytes) * 1000.0 / (now - lastTimestamp)
+                                            lastTimestamp = now
+                                            lastBytes = done
+                                            val eta = if (bytesPerSecond > 0) {
+                                                ((total - done) / bytesPerSecond).toLong()
+                                            } else {
+                                                -1L
+                                            }
+                                            onProgress(
+                                                done * 100f / total,
+                                                eta,
+                                                "at ${formatSpeed(bytesPerSecond)}",
+                                            )
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }.awaitAll()
+            }
+            onProgress(100f, 0L, "")
+            target
+        } catch (e: IOException) {
+            if (calls.keys.any { it.startsWith(processId) && calls[it]?.isCanceled() == true }) {
+                throw CancellationException("Download canceled")
+            }
+            throw e
+        } finally {
+            calls.keys.filter { it == processId || it.startsWith("$processId-") }.forEach { calls.remove(it) }
+        }
     }
 
     suspend fun download(

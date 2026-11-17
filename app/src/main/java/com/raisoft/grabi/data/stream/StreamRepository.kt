@@ -6,7 +6,10 @@ import com.raisoft.grabi.domain.model.StreamInfo
 import com.raisoft.grabi.domain.model.StreamOption
 import javax.inject.Inject
 import javax.inject.Singleton
+import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.SupervisorJob
+import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import org.schabi.newpipe.extractor.InfoItem
 import org.schabi.newpipe.extractor.ServiceList
@@ -18,6 +21,15 @@ import org.schabi.newpipe.extractor.stream.StreamType
 class StreamRepository @Inject constructor(
     private val cache: StreamCache,
 ) {
+
+    private val scope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
+
+    fun cached(url: String): StreamInfo? = cache.get(url)
+
+    fun prefetch(url: String) {
+        if (cache.get(url) != null) return
+        scope.launch { runCatching { resolve(url) } }
+    }
 
     suspend fun resolve(url: String, forceRefresh: Boolean = false): StreamInfo =
         withContext(Dispatchers.IO) {

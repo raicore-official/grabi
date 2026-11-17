@@ -10,6 +10,7 @@ import com.raisoft.grabi.data.download.DownloadManager
 import com.raisoft.grabi.data.settings.SettingsRepository
 import com.raisoft.grabi.data.settings.UserSettings
 import com.raisoft.grabi.domain.LinkValidator
+import com.raisoft.grabi.domain.MediaFormatMapper
 import com.raisoft.grabi.domain.model.DetectedMedia
 import com.raisoft.grabi.domain.model.MediaKind
 import com.raisoft.grabi.domain.model.MediaOption
@@ -87,12 +88,30 @@ class BrowserViewModel @Inject constructor(
             MediaKind.IMAGE ->
                 MediaOption("image", "Image", MediaKind.IMAGE, media.url, null, media.sizeBytes)
             MediaKind.VIDEO ->
-                MediaOption("best", "Video", MediaKind.VIDEO, "bestvideo+bestaudio/best", null, null)
+                MediaOption(
+                    "best", "Video", MediaKind.VIDEO,
+                    MediaFormatMapper.AVC_VIDEO_SELECTOR, null, null,
+                )
             MediaKind.AUDIO ->
                 MediaOption("audio", "Audio", MediaKind.AUDIO, "bestaudio/best", "m4a", null)
         }
         viewModelScope.launch { downloadManager.enqueue(media.url, title, option, false) }
     }
+
+    val downloadStates: kotlinx.coroutines.flow.StateFlow<Map<String, com.raisoft.grabi.data.db.DownloadEntity>> =
+        downloadManager.statesByKey()
+            .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), emptyMap())
+
+    fun pauseResumeDownload(id: String) {
+        val entity = downloadStates.value.values.firstOrNull { it.id == id } ?: return
+        if (entity.status == com.raisoft.grabi.domain.model.DownloadStatus.PAUSED.name) {
+            downloadManager.resume(id)
+        } else {
+            downloadManager.pause(id)
+        }
+    }
+
+    fun deleteDownload(id: String) = downloadManager.delete(id)
 
     fun applyTheme(dark: Boolean, backgroundArgb: Int) {
         tabManager.applyThemeToAll(dark, backgroundArgb)

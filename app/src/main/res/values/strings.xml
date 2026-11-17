@@ -24,6 +24,9 @@
     <string name="home_format_audio">Audio only</string>
     <string name="home_subtitles">English subtitles (when available)</string>
     <string name="home_download_button">Download</string>
+    <string name="home_downloaded">Downloaded — tap to play offline, hold to delete</string>
+    <string name="player_downloaded">Downloaded ✓</string>
+    <string name="settings_debug_log">Share debug log</string>
     <string name="home_eta">ETA %1$s</string>
     <string name="home_sites_title">Quick sites</string>
     <string name="home_feed_empty">Nothing here yet. Try another category or search.</string>
@@ -69,6 +72,7 @@
     <string name="status_queued">Queued</string>
     <string name="status_running">Downloading</string>
     <string name="status_paused">Paused</string>
+    <string name="status_starting">Starting…</string>
     <string name="status_waiting_wifi">Waiting for Wi-Fi</string>
     <string name="status_done">Completed</string>
     <string name="status_failed">Failed</string>

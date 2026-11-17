@@ -1,7 +1,6 @@
 package com.raisoft.grabi.data.download
 
 import android.content.Context
-import com.raisoft.grabi.domain.LinkValidator
 import com.raisoft.grabi.domain.MediaFormatMapper
 import com.raisoft.grabi.domain.model.FormatSpec
 import com.raisoft.grabi.domain.model.MediaInfo
@@ -53,6 +52,7 @@ class YtDlpEngine @Inject constructor(
     suspend fun fetchInfo(url: String): MediaInfo {
         ensureInitialized()
         val request = YoutubeDLRequest(url).addOption("--no-playlist")
+            .addOption("--extractor-args", "youtube:player_client=android,ios")
         val info = withContext(Dispatchers.IO) { YoutubeDL.getInstance().getInfo(request) }
         val formats = info.formats.orEmpty().map {
             FormatSpec(
@@ -104,10 +104,14 @@ class YtDlpEngine @Inject constructor(
             .addOption("--progress")
             .addOption("-o", File(outputDir, "%(title)s.%(ext)s").absolutePath)
             .addOption("--print", "after_move:filepath")
-        if (LinkValidator.isDirectMediaUrl(url)) {
-            val aria2c = File(context.applicationInfo.nativeLibraryDir, "libaria2c.so")
-            if (aria2c.exists()) request.addOption("--external-downloader", aria2c.absolutePath)
+        val aria2c = File(context.applicationInfo.nativeLibraryDir, "libaria2c.so")
+        if (aria2c.exists()) {
+            request.addOption("--external-downloader", aria2c.absolutePath)
+            request.addOption("--external-downloader-args", "aria2c:-x16 -s16 -k1M")
         }
+        request.addOption("--concurrent-fragments", "8")
+        request.addOption("--http-chunk-size", "10M")
+        request.addOption("--extractor-args", "youtube:player_client=android,ios")
         if (option.kind == MediaKind.VIDEO) {
             request.addOption("--merge-output-format", "mp4")
         } else {
