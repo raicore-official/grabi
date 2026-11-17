@@ -22,6 +22,7 @@ import androidx.compose.material3.Switch
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
@@ -37,6 +38,8 @@ import com.raisoft.grabi.data.settings.ThemeMode
 @Composable
 fun SettingsScreen(viewModel: SettingsViewModel = hiltViewModel()) {
     val settings by viewModel.settings.collectAsStateWithLifecycle()
+    val engineVersion by viewModel.engineVersion.collectAsStateWithLifecycle()
+    LaunchedEffect(Unit) { viewModel.refreshEngineVersion() }
     val context = LocalContext.current
     val versionName = remember {
         runCatching {
@@ -118,6 +121,13 @@ fun SettingsScreen(viewModel: SettingsViewModel = hiltViewModel()) {
                     style = MaterialTheme.typography.bodyMedium,
                 )
                 Text(
+                    text = stringResource(
+                        R.string.settings_engine,
+                        engineVersion ?: stringResource(R.string.settings_engine_bundled),
+                    ),
+                    style = MaterialTheme.typography.bodyMedium,
+                )
+                Text(
                     text = stringResource(R.string.settings_license),
                     style = MaterialTheme.typography.bodyMedium,
                 )
@@ -125,7 +135,7 @@ fun SettingsScreen(viewModel: SettingsViewModel = hiltViewModel()) {
                     onClick = {
                         runCatching {
                             context.startActivity(
-                                Intent(Intent.ACTION_VIEW, Uri.parse("https://github.com/Raisulxislam/grabi")),
+                                Intent(Intent.ACTION_VIEW, Uri.parse("https://github.com/raicore-official/grabi")),
                             )
                         }
                     },

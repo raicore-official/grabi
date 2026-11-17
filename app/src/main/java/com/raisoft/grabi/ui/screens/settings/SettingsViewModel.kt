@@ -2,19 +2,23 @@ package com.raisoft.grabi.ui.screens.settings
 
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import com.raisoft.grabi.data.download.YtDlpEngine
 import com.raisoft.grabi.data.settings.SettingsRepository
 import com.raisoft.grabi.data.settings.ThemeMode
 import com.raisoft.grabi.data.settings.UserSettings
 import dagger.hilt.android.lifecycle.HiltViewModel
 import javax.inject.Inject
+import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
 
 @HiltViewModel
 class SettingsViewModel @Inject constructor(
     private val settingsRepository: SettingsRepository,
+    private val engine: YtDlpEngine,
 ) : ViewModel() {
 
     val settings: StateFlow<UserSettings> = settingsRepository.settings.stateIn(
@@ -22,6 +26,17 @@ class SettingsViewModel @Inject constructor(
         started = SharingStarted.WhileSubscribed(5_000),
         initialValue = UserSettings(),
     )
+
+    private val _engineVersion = MutableStateFlow<String?>(null)
+    val engineVersion: StateFlow<String?> = _engineVersion.asStateFlow()
+
+    init {
+        refreshEngineVersion()
+    }
+
+    fun refreshEngineVersion() {
+        _engineVersion.value = engine.binaryVersion()
+    }
 
     fun setThemeMode(mode: ThemeMode) {
         viewModelScope.launch { settingsRepository.setThemeMode(mode) }

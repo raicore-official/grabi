@@ -17,6 +17,9 @@ android {
         versionCode = 1
         versionName = "0.1.0"
         vectorDrawables { useSupportLibrary = true }
+        ndk {
+            abiFilters += listOf("arm64-v8a", "armeabi-v7a", "x86_64", "x86")
+        }
     }
 
     // CI decodes the keystore from GitHub Secrets and exports KEYSTORE_PATH.
@@ -56,6 +59,8 @@ android {
     }
     packaging {
         resources { excludes += "/META-INF/{AL2.0,LGPL2.1}" }
+        // youtubedl-android dlopen()s its bundled binaries, so they must stay extracted on disk.
+        jniLibs { useLegacyPackaging = true }
     }
     lint {
         checkReleaseBuilds = false
@@ -82,6 +87,8 @@ dependencies {
     implementation(libs.hilt.navigation.compose)
     implementation(libs.datastore.preferences)
     implementation(libs.kotlinx.coroutines.android)
+    implementation(libs.youtubedl.library)
+    implementation(libs.youtubedl.ffmpeg)
 
     testImplementation(libs.junit)
 }
