@@ -101,7 +101,13 @@ class GrabViewModel @Inject constructor(
         val info = state.info ?: return
         val option = info.options.firstOrNull { it.id == state.selectedOptionId } ?: return
         viewModelScope.launch {
-            val id = manager.enqueue(info.webpageUrl ?: state.link, info.title, option, state.subtitles)
+            val id = manager.enqueue(
+                info.webpageUrl ?: state.link,
+                info.title,
+                option,
+                state.subtitles,
+                thumbnailUrl = info.thumbnailUrl,
+            )
             _ui.update { it.copy(lastDownloadId = id) }
         }
     }

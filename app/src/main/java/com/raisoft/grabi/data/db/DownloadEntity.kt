@@ -23,4 +23,5 @@ data class DownloadEntity(
     val error: String?,
     val createdAt: Long,
     @ColumnInfo(defaultValue = "") val videoId: String = "",
+    @ColumnInfo(defaultValue = "") val thumbnailUrl: String? = null,
 )

@@ -23,6 +23,7 @@ object DatabaseModule {
     fun database(@ApplicationContext context: Context): GrabiDatabase =
         Room.databaseBuilder(context, GrabiDatabase::class.java, "grabi.db")
             .addMigrations(MIGRATION_1_2)
+            .addMigrations(MIGRATION_2_3)
             .build()
 
     private val MIGRATION_1_2 = object : Migration(1, 2) {
@@ -36,6 +37,12 @@ object DatabaseModule {
                     )
                 }
             }
+        }
+    }
+
+    private val MIGRATION_2_3 = object : Migration(2, 3) {
+        override fun migrate(db: SupportSQLiteDatabase) {
+            db.execSQL("ALTER TABLE downloads ADD COLUMN thumbnailUrl TEXT DEFAULT NULL")
         }
     }
 

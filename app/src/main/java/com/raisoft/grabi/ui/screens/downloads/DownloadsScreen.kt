@@ -6,6 +6,9 @@ import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.RowScope
+import androidx.compose.foundation.layout.aspectRatio
+import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
@@ -24,9 +27,13 @@ import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
+import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
+import coil.compose.AsyncImage
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.raisoft.grabi.R
@@ -35,6 +42,7 @@ import com.raisoft.grabi.domain.DownloadFilter
 import com.raisoft.grabi.domain.model.DownloadStatus
 import com.raisoft.grabi.ui.components.EmptyState
 import com.raisoft.grabi.ui.formatDuration
+import com.raisoft.grabi.ui.theme.onVideo
 
 @Composable
 fun DownloadsScreen(
@@ -97,6 +105,18 @@ private fun DownloadRow(
             modifier = Modifier.padding(16.dp),
             verticalArrangement = Arrangement.spacedBy(8.dp),
         ) {
+            AsyncImage(
+                model = entity.thumbnailUrl ?: R.drawable.grabi_home_thumbnail,
+                contentDescription = null,
+                contentScale = ContentScale.Crop,
+                placeholder = painterResource(R.drawable.grabi_home_thumbnail),
+                error = painterResource(R.drawable.grabi_home_thumbnail),
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .aspectRatio(16f / 9f)
+                    .clip(MaterialTheme.shapes.medium)
+                    .background(MaterialTheme.colorScheme.surfaceVariant),
+            )
             Text(
                 text = entity.title,
                 style = MaterialTheme.typography.titleSmall,

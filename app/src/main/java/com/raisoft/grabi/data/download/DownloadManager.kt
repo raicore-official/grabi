@@ -83,6 +83,7 @@ class DownloadManager @Inject constructor(
         option: MediaOption,
         subtitles: Boolean,
         videoId: String = VideoIds.of(url),
+        thumbnailUrl: String? = null,
     ): String {
         return enqueueMutex.withLock {
             val existing = dao.latestByVideoId(videoId, option.kind.name)
@@ -115,6 +116,7 @@ class DownloadManager @Inject constructor(
                     contentUri = null,
                     error = null,
                     createdAt = System.currentTimeMillis(),
+                    thumbnailUrl = thumbnailUrl,
                 ),
             )
             pump()
