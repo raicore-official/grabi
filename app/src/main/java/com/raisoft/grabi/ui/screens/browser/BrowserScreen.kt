@@ -495,7 +495,7 @@ fun BrowserScreen(
                             items(avMedia.reversed(), key = { it.url }) { media ->
                                 DetectedRow(
                                 media = media,
-                                download = downloadStates[VideoIds.of(media.url)],
+                                download = downloadStates["${VideoIds.of(media.url)}:${media.kind.name}"],
                                 onPauseResume = { viewModel.pauseResumeDownload(it.id) },
                                 onDelete = { viewModel.deleteDownload(it.id) },
                             ) { viewModel.downloadDetected(media) }
@@ -516,7 +516,7 @@ fun BrowserScreen(
                         items(images.reversed(), key = { it.url }) { media ->
                             DetectedRow(
                                 media = media,
-                                download = downloadStates[VideoIds.of(media.url)],
+                                download = downloadStates["${VideoIds.of(media.url)}:${media.kind.name}"],
                                 onPauseResume = { viewModel.pauseResumeDownload(it.id) },
                                 onDelete = { viewModel.deleteDownload(it.id) },
                             ) { viewModel.downloadDetected(media) }

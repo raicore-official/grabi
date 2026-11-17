@@ -30,6 +30,7 @@ import androidx.compose.material3.CircularProgressIndicator
 import com.raisoft.grabi.data.db.DownloadEntity
 import com.raisoft.grabi.domain.VideoIds
 import com.raisoft.grabi.domain.model.DownloadStatus
+import com.raisoft.grabi.domain.model.MediaKind
 import androidx.compose.material.icons.rounded.Search
 import androidx.compose.material3.ElevatedCard
 import androidx.compose.material3.FilterChip
@@ -240,7 +241,7 @@ fun HomeScreen(
         items(feed.items, key = { it.url }) { item ->
             FeedCard(
                 item = item,
-                download = downloadStates[VideoIds.of(item.url)],
+                download = downloadStates["${VideoIds.of(item.url)}:${MediaKind.VIDEO.name}"],
                 onOpen = { onOpenPlayer(item.url, item.title, item.thumbnailUrl.orEmpty()) },
                 onDownload = { onGrab(item.url) },
                 onPauseResume = { viewModel.pauseResumeDownload(it.id) },
