@@ -262,7 +262,8 @@ class VpnRepository @Inject constructor(
             delay(1_000)
             if (t.state == Tunnel.State.DOWN) return false
             val stats = runCatching { backend.statistics(t) }.getOrNull() ?: continue
-            if (stats.peer(peerKey).latestHandshakeEpochMillis() >= connectStartedAt - 2_000) {
+            val handshake = stats.peer(peerKey)?.latestHandshakeEpochMillis() ?: 0L
+            if (handshake >= connectStartedAt - 2_000) {
                 return true
             }
         }
@@ -276,7 +277,7 @@ class VpnRepository @Inject constructor(
             while (isActive) {
                 val stats = runCatching { backend.statistics(t) }.getOrNull()
                 if (stats != null) {
-                    val handshake = peerKey?.let { stats.peer(it).latestHandshakeEpochMillis() } ?: 0L
+                    val handshake = peerKey?.let { stats.peer(it)?.latestHandshakeEpochMillis() } ?: 0L
                     _connection.update {
                         it.copy(
                             rxBytes = stats.totalRx(),
