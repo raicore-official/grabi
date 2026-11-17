@@ -1,0 +1,8 @@
+Native YouTube feed on Home (trending, music, gaming and more kiosks plus search) with a logo-only header.
+New Grab tab: paste or share any supported link, pick a format, watch the live download card.
+Floating glassy icon-only bottom navigation with six destinations.
+Fixed downloads failing: ffmpeg and aria2c are now extracted at engine init and progress reporting works.
+Fixed screen-off and audio-only background playback (network wake lock).
+Browser detection sheet split into Video & audio and Images sections.
+Settings: choose any download folder (SAF), with media folders as fallback.
+Settings: manual yt-dlp update button alongside background auto-update.
