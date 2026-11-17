@@ -8,11 +8,36 @@ const observer = new IntersectionObserver((entries) => {
 }, { threshold: 0.12 });
 document.querySelectorAll(".reveal").forEach((el) => observer.observe(el));
 
-const downloadLinks = document.querySelectorAll('a[href*="grabi-v0.4.1.apk"]');
+const downloadLinks = document.querySelectorAll("[data-download-link]");
 downloadLinks.forEach((link) => {
   link.addEventListener("click", () => {
     link.classList.add("clicked");
     window.setTimeout(() => link.classList.remove("clicked"), 500);
+  });
+
+  const latestReleaseApi = "https://api.github.com/repos/raicore-official/grabi/releases/latest";
+  fetch(latestReleaseApi, { headers: { Accept: "application/vnd.github+json" } })
+    .then((response) => response.ok ? response.json() : Promise.reject(new Error("release lookup failed")))
+    .then((release) => {
+      const apk = release.assets?.find((asset) => asset.name.toLowerCase().endsWith(".apk"));
+      if (!apk?.browser_download_url) return;
+      document.querySelectorAll("[data-download-link]").forEach((link) => {
+        link.href = apk.browser_download_url;
+      });
+      document.querySelectorAll("[data-release-version]").forEach((label) => {
+        label.textContent = release.tag_name;
+      });
+    })
+    .catch(() => {
+      // Keep the checked-in release URL when GitHub is unavailable.
+    });
+
+  const playAction = document.querySelector(".play-action");
+  playAction?.addEventListener("click", () => {
+    const isPlaying = playAction.getAttribute("aria-pressed") !== "true";
+    playAction.setAttribute("aria-pressed", String(isPlaying));
+    playAction.setAttribute("aria-label", isPlaying ? "Pause workflow" : "Play workflow");
+    playAction.textContent = isPlaying ? "Ⅱ" : "▶";
   });
 });
 
