@@ -1,14 +1,34 @@
+<img src="app/src/main/res/drawable-nodpi/grabi_logo.png" width="88" align="right" alt="Grabi logo">
+
 # Grabi
 
-Open-source, VidMate-style video downloader and player for Android. No ads, no tracking, no API keys. Built by [Raisoft Studio](https://github.com/Raisulxislam).
+[![Build](https://github.com/raicore-official/grabi/actions/workflows/build.yml/badge.svg)](https://github.com/raicore-official/grabi/actions/workflows/build.yml)
+[![Release](https://img.shields.io/github/v/release/raicore-official/grabi)](https://github.com/raicore-official/grabi/releases)
+[![License](https://img.shields.io/github/license/raicore-official/grabi)](LICENSE)
+[![Android](https://img.shields.io/badge/Android-8.0%2B-3DDC84?logo=android&logoColor=white)](https://developer.android.com/about/versions/oreo)
 
-> **Status: complete — v0.1.0.** All seven roadmap phases are done: shell, yt-dlp engine, download manager, Media3 player, built-in browser (tabs, incognito, site grid, video/audio/image detection, EasyList/EasyPrivacy/uBlock adblock with per-site allowlist), WireGuard VPN (config import, country-organized community config finder, handshake verification, kill switch, split tunneling) and release polish (crash capture, F-Droid metadata, GitHub Releases). Backlog items are marked below.
+Open-source, VidMate-style video downloader and player for Android. No ads, no tracking, no API keys.
+Original developer: **Raisul Islam** ([Raisulxislam](https://github.com/Raisulxislam)) · Raisoft Studio.
+
+> **Status: v0.1.0 released · Phase 8 on main.** All seven roadmap phases are done: shell, yt-dlp engine, download manager, Media3 player, built-in browser (tabs, incognito, site grid, video/audio/image detection, EasyList/EasyPrivacy/uBlock adblock with per-site allowlist), WireGuard VPN (config import, country-organized community config finder, handshake verification, kill switch, split tunneling) and release polish (crash capture, F-Droid metadata, GitHub Releases). Phase 8 adds the native YouTube feed, the dedicated Grab tab, glassy icon-only navigation, SAF download destinations, manual engine updates and screen-off playback fixes. Backlog items are marked below.
+
+## Screenshots
+
+Design renderings of the current UI (pixel-faithful HTML/CSS replicas of the Compose screens at 2× scale), not device captures.
+
+| Home — native feed | Grab — paste to download | Browser — detection sheet |
+|---|---|---|
+| ![Home](docs/screenshots/home.png) | ![Grab](docs/screenshots/grab.png) | ![Browser](docs/screenshots/browser.png) |
+
+| Downloads — live queue | Settings |
+|---|---|
+| ![Downloads](docs/screenshots/downloads.png) | ![Settings](docs/screenshots/settings.png) |
 
 ## Features
 
 | Area | Feature | Phase |
 |---|---|---|
-| Shell | Material 3 dark-first UI, bottom nav (Home · Browser · Downloads · Library · Settings), Montserrat/charcoal-ember theme, dynamic color option | 1 ✅ |
+| Shell | Material 3 dark-first UI, floating glassy icon-only bottom nav (Home · Grab · Browser · Downloads · Library · Settings), Montserrat/charcoal-ember theme, dynamic color option | 1 ✅ |
 | Downloader | yt-dlp engine (1000+ sites), paste/share links, 144p–4K + mp3/m4a/opus picker, English subtitles, background yt-dlp auto-update, cancel | 2 ✅ |
 | Downloader+ | Playlist/batch downloads | backlog |
 | Download manager | Room-backed queue, foreground service + WorkManager recovery, pause/resume/retry/cancel/delete, 1–3 parallel downloads, Wi-Fi-only, speed/ETA notifications, MediaStore publish (Android 10+), aria2 for direct media links, filters | 3 ✅ |
@@ -17,6 +37,7 @@ Open-source, VidMate-style video downloader and player for Android. No ads, no t
 | VPN | WireGuard via the official embeddable tunnel library, import configs (paste/file/URL), runtime country-organized config finder across public GitHub sources (nothing bundled, untrusted-server warnings), handshake verification before “connected”, kill switch, split tunneling, always-on VPN integration. No hardcoded servers or keys | 6 ✅ |
 | VPN+ | Outline/sing-box providers behind the `TunnelBackend` seam, QR import | backlog |
 | Release | Crash capture with shareable crash log in Settings → About, F-Droid fastlane metadata, GitHub Releases (signed when secrets are set, debug-signed fallback otherwise) | 7 ✅ |
+| Native experience | Home = native YouTube feed (trending/music/gaming/… kiosks + search via NewPipeExtractor, no API key) with the brand logo in the header; dedicated **Grab** tab for universal paste/share/page-offer → format picker → live download card; SAF download destination picker; manual yt-dlp update button; screen-off & audio-only playback fixes; browser detection sheet split into *Video & audio* / *Images* | 8 ✅ |
 
 ## Architecture
 
@@ -25,8 +46,8 @@ Single Gradle module (`:app`), clean-architecture packages, unidirectional data 
 ```
 ┌──────────────────────────────────────────────────────────┐
 │ ui/            Jetpack Compose + Material 3              │
-│   screens/*    Home · Browser · Downloads · Library ·    │
-│                Settings (ViewModels expose StateFlow)    │
+│   screens/*    Home · Grab · Browser · Downloads ·       │
+│                Library · Settings (StateFlow ViewModels) │
 │   navigation/  bottom-nav graph, state-preserving tabs   │
 │   theme/       Raisoft charcoal/ember tokens, Montserrat │
 ├──────────────────────────────────────────────────────────┤
@@ -94,7 +115,7 @@ Requirements: minSdk 26 (Android 8.0), targetSdk 34, Kotlin 2.0.21, AGP 8.5.2, G
 - **Swappable engine:** UI talks to a `BrowserEngine` interface; `WebViewEngine` is the current implementation (WebView created with application context, retained per tab). Up to 8 tabs; normal tabs persist across restarts (DataStore JSON), engines are created lazily and destroyed on close.
 - **Incognito:** per-tab flag — no history recording, DOM storage/form data/cache disabled, and cookies are cleared when the last incognito tab closes. Honest limitation: WebView has one cookie jar per process, so cookies are shared with normal tabs *while* an incognito tab is open.
 - **Search & navigation:** URL bar loads URLs directly, upgrades bare hosts to https, and sends anything else to DuckDuckGo (no API key). New tabs show a popular-site grid. Back/forward/reload, progress bar, browser history sheet with clear.
-- **Media detection:** `shouldInterceptRequest` classifies every subresource with the pure `MediaSniffer` (extension + MIME rules) into video/audio/image; detections are deduped per tab (cap 50) and surfaced in the floating download button's sheet. Detected videos/audio queue through yt-dlp; **images download via a new OkHttp `DirectDownloader`** integrated into the same Room queue (progress, pause/cancel, MediaStore `Pictures/Grabi` on Android 10+). “Download this page” sends the page URL to Home's yt-dlp flow for site players (YouTube etc.).
+- **Media detection:** `shouldInterceptRequest` classifies every subresource with the pure `MediaSniffer` (extension + MIME rules) into video/audio/image; detections are deduped per tab (cap 50) and surfaced in the floating download button's sheet. Detected videos/audio queue through yt-dlp; **images download via a new OkHttp `DirectDownloader`** integrated into the same Room queue (progress, pause/cancel, MediaStore `Pictures/Grabi` on Android 10+). “Download this page” sends the page URL to the Grab tab's yt-dlp flow for site players (YouTube etc.).
 - **Adblock:** `AdblockEngine` fetches EasyList + EasyPrivacy + uBlock filters on first browser use and auto-refreshes when older than 7 days (manual update in Settings/menu). The lean Kotlin `FilterListParser` compiles `||domain^`, `@@` exceptions, `||domain/path` and plain substring rules into hash-set/suffix matchers — O(1) per request. Rules with options (`$third-party`, `$domain=`) and cosmetic rules are deliberately skipped: under-block rather than break sites. Per-site allowlist lives in Settings; blocked requests get an empty response.
 - `usesCleartextTraffic` is enabled because a browser must open http:// sites; everything else stays TLS-first.
 
@@ -132,6 +153,16 @@ Store metadata lives in `fastlane/metadata/android/en-US/` (title, short/full de
 3. Validate locally with `fdroid lint` / `fdroid build` if you can, then open a merge request and respond to reviewer feedback.
 
 F-Droid builds from source and signs with its own key, so no keystore secrets are needed for that channel. Screenshots (optional but recommended) go in `fastlane/metadata/android/en-US/images/phoneScreenshots/`.
+
+## Native experience (Phase 8)
+
+- **Home is a native feed, not a paste box.** `FeedRepository` talks to NewPipeExtractor's YouTube kiosks (Trending, Music, Gaming, …) and search — no API key, no WebView. Results render as thumbnail cards with view counts, duration, uploader avatar and a one-tap download action; kiosk results are cached per session. The header is just a YouTube search field with the Grabi logo in the top-right corner.
+- **Grab tab owns paste-to-download.** The universal link field (clipboard paste button, `ACTION_SEND` shares, browser “Download this page” offers and feed download taps all route here), the format picker (144p–4K merged MP4 + MP3/M4A/Opus, subtitles switch) and the live download card (percent/speed/ETA, pause/resume/retry/cancel) live on their own destination, so Home stays a clean browsing surface.
+- **Glassy icon-only navigation.** Floating pill bar with a translucent charcoal gradient, hairline top light, per-tab ember glow and custom stroke icons matched to the logo; six destinations, state-preserving switches.
+- **Playback fixes.** ExoPlayer is built with `C.WAKE_MODE_NETWORK` so screen-off and audio-only background playback keep their wake lock; audio becoming noisy pauses playback.
+- **Engine fixes & updates.** yt-dlp init now also extracts FFmpeg and aria2c (missing before, which broke merges/direct links); downloads pass `--no-simulate --progress` so `--print`-style info flags no longer suppress progress. Settings → Download engine shows the binary version and a manual **Update yt-dlp** button (STABLE channel) on top of the background auto-update.
+- **Download destination.** Settings → Downloads opens the system folder picker (SAF); finished files are copied into the chosen tree via `DocumentsContract`, with MediaStore as the default/fallback. The folder's display name is resolved from the tree document.
+- **Detection sheet sections.** The browser's floating download sheet splits detections into *Video & audio* and *Images* chips with counts, plus the page-level video offer for MSE players like YouTube.
 
 ## Open-source libraries
 
@@ -187,7 +218,7 @@ Practical consequence: anyone distributing a modified Grabi must publish their s
 - **Site breakage:** YouTube changes frequently; yt-dlp/NewPipeExtractor need updates. yt-dlp binary auto-update (P2) mitigates; extractor bumps ship with app updates.
 - **Play Store:** not distributable there (downloader policy). GitHub/F-Droid only.
 - **DRM/EME:** WebView cannot play or download DRM-protected streams (Netflix etc.).
-- **Scoped storage:** Android 10+ publishes finished files to MediaStore (`Movies/Grabi`, `Music/Grabi`); Android 8–9 keeps them in the app-specific external dir (uninstall deletes them). SAF picker export is a possible later addition.
+- **Scoped storage:** Android 10+ publishes finished files to MediaStore (`Movies/Grabi`, `Music/Grabi`) by default; Settings → Downloads can point every finished file at any SAF folder instead (copied via `DocumentsContract`, MediaStore fallback if the tree becomes unavailable). Android 8–9 keeps files in the app-specific external dir (uninstall deletes them).
 - **Background limits:** Android 12+ blocks foreground-service starts from the background; if the OS kills the app mid-download, the queue resumes on next launch (WorkManager + startup recovery). Pause/resume restarts the yt-dlp process and continues the `.part` file rather than freezing it in place.
 - **Player:** YouTube stream URLs are session-bound and expire; a stale history entry may need a re-resolve (Retry). PiP shows the whole player screen scaled down (controls included) rather than a video-only surface. Audio-only background playback relies on the media notification; some OEM battery killers still stop it.
 - **Browser:** detection is extension/MIME-based — MSE/blob streams (YouTube's player) are not sniffed; use “Download this page” there. Adblock is network-level only (no cosmetic filtering, option rules skipped). Incognito shares the cookie jar while open (cleared on last incognito close). WebView fullscreen video (`onShowCustomView`) is not handled yet.
@@ -196,5 +227,7 @@ Practical consequence: anyone distributing a modified Grabi must publish their s
 - **Low-end devices:** Python+yt-dlp startup is heavy; engine init is lazy and off the main thread (P2).
 
 ## Credits
+
+Original developer: **Raisul Islam** ([Raisulxislam](https://github.com/Raisulxislam)), Raisoft Studio — design, brand and implementation.
 
 yt-dlp · youtubedl-android (yausername / JunkFood02) · NewPipeExtractor (TeamNewPipe) · aria2 · FFmpeg · AndroidX/Jetpack (Google) · Dagger/Hilt (Google) · OkHttp (Square) · Coil · WireGuard · Outline (Jigsaw) · Brave adblock-rust · Montserrat (Julieta Ulanovsky et al.). Grabi is an independent project, not affiliated with VidMate or YouTube.
