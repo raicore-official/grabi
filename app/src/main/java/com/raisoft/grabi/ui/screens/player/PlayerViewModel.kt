@@ -2,6 +2,7 @@ package com.raisoft.grabi.ui.screens.player
 
 import android.content.ComponentName
 import android.content.Context
+import android.os.Bundle
 import androidx.core.os.bundleOf
 import androidx.lifecycle.SavedStateHandle
 import androidx.lifecycle.ViewModel
@@ -223,7 +224,7 @@ class PlayerViewModel @Inject constructor(
                 ?: info.videoOptions.firstOrNull()
         } ?: return
         controller.sendCustomCommand(
-            SessionCommand(PlaybackService.ACTION_SET_MEDIA),
+            SessionCommand(PlaybackService.ACTION_SET_MEDIA, Bundle.EMPTY),
             bundleOf(
                 PlaybackService.KEY_VIDEO_URL to option.videoUrl,
                 PlaybackService.KEY_AUDIO_URL to option.audioUrl,
