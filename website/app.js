@@ -47,3 +47,17 @@ if (screensScroll && carouselButtons?.length === 2) {
   window.addEventListener("resize", updateCarouselButtons);
   updateCarouselButtons();
 }
+
+const vpnStatus = document.querySelector("[data-vpn-status]");
+const vpnToggle = vpnStatus?.querySelector(".vpn-toggle");
+if (vpnStatus && vpnToggle) {
+  vpnToggle.addEventListener("click", () => {
+    const isOn = vpnStatus.dataset.vpnStatus !== "on";
+    vpnStatus.dataset.vpnStatus = isOn ? "on" : "off";
+    vpnToggle.setAttribute("aria-pressed", String(isOn));
+    vpnToggle.setAttribute("aria-label", isOn ? "Turn VPN off" : "Turn VPN on");
+    vpnStatus.querySelector(".vpn-status-title").textContent = isOn ? "Protected connection" : "VPN is off";
+    vpnStatus.querySelector(".vpn-status-detail").textContent = isOn ? "WireGuard · verified configuration" : "Traffic is not protected";
+    vpnStatus.querySelector(".vpn-status-state").textContent = isOn ? "ON" : "OFF";
+  });
+}
