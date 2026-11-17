@@ -36,7 +36,7 @@ import com.raisoft.grabi.R
 import com.raisoft.grabi.data.settings.ThemeMode
 
 @Composable
-fun SettingsScreen(viewModel: SettingsViewModel = hiltViewModel()) {
+fun SettingsScreen(onOpenVpn: () -> Unit = {}, viewModel: SettingsViewModel = hiltViewModel()) {
     val settings by viewModel.settings.collectAsStateWithLifecycle()
     val engineVersion by viewModel.engineVersion.collectAsStateWithLifecycle()
     val adblockUpdating by viewModel.adblockUpdating.collectAsStateWithLifecycle()
@@ -207,6 +207,26 @@ fun SettingsScreen(viewModel: SettingsViewModel = hiltViewModel()) {
                             },
                         ),
                     )
+                }
+            }
+        }
+
+        ElevatedCard(Modifier.fillMaxWidth()) {
+            Column(
+                modifier = Modifier.padding(16.dp),
+                verticalArrangement = Arrangement.spacedBy(8.dp),
+            ) {
+                Text(
+                    text = stringResource(R.string.settings_vpn),
+                    style = MaterialTheme.typography.titleMedium,
+                )
+                Text(
+                    text = stringResource(R.string.settings_vpn_summary),
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                )
+                TextButton(onClick = onOpenVpn) {
+                    Text(stringResource(R.string.settings_vpn_open))
                 }
             }
         }

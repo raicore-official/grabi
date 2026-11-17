@@ -28,13 +28,14 @@ import com.raisoft.grabi.ui.screens.home.HomeScreen
 import com.raisoft.grabi.ui.screens.library.LibraryScreen
 import com.raisoft.grabi.ui.screens.player.PlayerScreen
 import com.raisoft.grabi.ui.screens.settings.SettingsScreen
+import com.raisoft.grabi.ui.screens.vpn.VpnScreen
 
 @Composable
 fun GrabiApp(pendingLink: PendingLink) {
     val navController = rememberNavController()
     val backStackEntry by navController.currentBackStackEntryAsState()
     val currentRoute = backStackEntry?.destination?.route
-    val showBottomBar = currentRoute?.startsWith("player") != true
+    val showBottomBar = currentRoute?.startsWith("player") != true && currentRoute != "vpn"
 
     fun openPlayer(url: String, title: String) {
         navController.navigate("player?url=${Uri.encode(url)}&title=${Uri.encode(title)}")
@@ -99,7 +100,12 @@ fun GrabiApp(pendingLink: PendingLink) {
             composable(TopLevelDestination.LIBRARY.route) {
                 LibraryScreen(onOpenPlayer = ::openPlayer)
             }
-            composable(TopLevelDestination.SETTINGS.route) { SettingsScreen() }
+            composable(TopLevelDestination.SETTINGS.route) {
+                SettingsScreen(onOpenVpn = { navController.navigate("vpn") })
+            }
+            composable("vpn") {
+                VpnScreen(onBack = { navController.popBackStack() })
+            }
             composable(
                 route = "player?url={url}&title={title}",
                 arguments = listOf(

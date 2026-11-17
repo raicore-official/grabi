@@ -17,3 +17,9 @@
 -dontwarn org.conscrypt.**
 -dontwarn org.bouncycastle.**
 -dontwarn org.openjsse.**
+
+# WireGuard GoBackend registers JNI methods by name; keep the backend and crypto classes intact.
+-keep class com.wireguard.android.backend.** { *; }
+-keep class com.wireguard.crypto.** { *; }
+-keep class com.wireguard.config.** { *; }
+-dontwarn com.wireguard.**
