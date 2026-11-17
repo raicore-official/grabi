@@ -36,7 +36,10 @@ import com.raisoft.grabi.ui.components.EmptyState
 import com.raisoft.grabi.ui.formatDuration
 
 @Composable
-fun DownloadsScreen(viewModel: DownloadsViewModel = hiltViewModel()) {
+fun DownloadsScreen(
+    onPlay: (DownloadEntity) -> Unit = {},
+    viewModel: DownloadsViewModel = hiltViewModel(),
+) {
     val items by viewModel.downloads.collectAsStateWithLifecycle()
     val filter by viewModel.filter.collectAsStateWithLifecycle()
 
@@ -71,7 +74,7 @@ fun DownloadsScreen(viewModel: DownloadsViewModel = hiltViewModel()) {
         } else {
             LazyColumn(verticalArrangement = Arrangement.spacedBy(12.dp)) {
                 items(items, key = { it.id }) { entity ->
-                    DownloadRow(entity, viewModel)
+                    DownloadRow(entity, viewModel, onPlay)
                 }
             }
         }
@@ -79,7 +82,11 @@ fun DownloadsScreen(viewModel: DownloadsViewModel = hiltViewModel()) {
 }
 
 @Composable
-private fun DownloadRow(entity: DownloadEntity, viewModel: DownloadsViewModel) {
+private fun DownloadRow(
+    entity: DownloadEntity,
+    viewModel: DownloadsViewModel,
+    onPlay: (DownloadEntity) -> Unit,
+) {
     val status = DownloadStatus.valueOf(entity.status)
     ElevatedCard(Modifier.fillMaxWidth()) {
         Column(
@@ -151,6 +158,9 @@ private fun DownloadRow(entity: DownloadEntity, viewModel: DownloadsViewModel) {
                         overflow = TextOverflow.Ellipsis,
                     )
                     ActionRow {
+                        TextButton(onClick = { onPlay(entity) }) {
+                            Text(stringResource(R.string.action_play))
+                        }
                         TextButton(onClick = { viewModel.open(entity) }) {
                             Text(stringResource(R.string.action_open))
                         }

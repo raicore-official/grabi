@@ -51,10 +51,30 @@
     <string name="action_cancel">Cancel</string>
     <string name="action_delete">Delete</string>
     <string name="action_open">Open</string>
+    <string name="action_play">Play</string>
     <string name="action_dismiss">Dismiss</string>
 
     <string name="library_title">Library</string>
-    <string name="library_message">Watch history, favorites and the built-in YouTube player with background audio arrive in Phase 4.</string>
+    <string name="library_history">History</string>
+    <string name="library_favorites">Favorites</string>
+    <string name="library_downloads">Downloads</string>
+    <string name="library_history_empty">Videos you play will appear here, with resume positions.</string>
+    <string name="library_favorites_empty">Tap Favorite in the player to keep videos here.</string>
+    <string name="library_downloads_empty">Completed downloads appear here for offline playback.</string>
+    <string name="library_clear_history">Clear history</string>
+
+    <string name="player_title">Player</string>
+    <string name="player_back">Back</string>
+    <string name="player_error_title">Playback failed</string>
+    <string name="player_quality">Quality</string>
+    <string name="player_audio_quality">Audio quality</string>
+    <string name="player_speed">Speed</string>
+    <string name="player_audio_only">Audio only</string>
+    <string name="player_audio_stage">Audio mode — keeps playing in the background</string>
+    <string name="player_pip">Mini player</string>
+    <string name="player_favorite">Favorite</string>
+    <string name="player_favorited">Favorited</string>
+    <string name="player_download">Download</string>
 
     <string name="settings_title">Settings</string>
     <string name="settings_appearance">Appearance</string>
@@ -78,7 +98,7 @@
     <string name="roadmap_phase_1">Phase 1 · UI shell, navigation, theme — done</string>
     <string name="roadmap_phase_2">Phase 2 · yt-dlp engine, link-to-download flow — done</string>
     <string name="roadmap_phase_3">Phase 3 · Download manager, queue, storage — done</string>
-    <string name="roadmap_phase_4">Phase 4 · Media3 player, audio mode, background playback</string>
+    <string name="roadmap_phase_4">Phase 4 · Media3 player, audio mode, background playback — done</string>
     <string name="roadmap_phase_5">Phase 5 · Browser, video detection, adblock</string>
     <string name="roadmap_phase_6">Phase 6 · VPN (WireGuard / Outline, your own servers)</string>
     <string name="roadmap_phase_7">Phase 7 · Polish, crash handling, F-Droid release</string>
