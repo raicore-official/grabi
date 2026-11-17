@@ -14,6 +14,11 @@ coroutines = "1.8.1"
 youtubedl = "0.18.1"
 room = "2.6.1"
 work = "2.9.1"
+media3 = "1.4.1"
+coil = "2.7.0"
+okhttp = "4.12.0"
+desugar = "2.1.2"
+newpipe = "v0.27.1"
 junit = "4.13.2"
 
 [libraries]
@@ -41,6 +46,13 @@ androidx-room-runtime = { group = "androidx.room", name = "room-runtime", versio
 androidx-room-ktx = { group = "androidx.room", name = "room-ktx", version.ref = "room" }
 androidx-room-compiler = { group = "androidx.room", name = "room-compiler", version.ref = "room" }
 androidx-work-runtime-ktx = { group = "androidx.work", name = "work-runtime-ktx", version.ref = "work" }
+media3-exoplayer = { group = "androidx.media3", name = "media3-exoplayer", version.ref = "media3" }
+media3-ui = { group = "androidx.media3", name = "media3-ui", version.ref = "media3" }
+media3-session = { group = "androidx.media3", name = "media3-session", version.ref = "media3" }
+coil-compose = { group = "io.coil-kt", name = "coil-compose", version.ref = "coil" }
+okhttp = { group = "com.squareup.okhttp3", name = "okhttp", version.ref = "okhttp" }
+desugar-jdk-nio = { group = "com.android.tools", name = "desugar_jdk_libs_nio", version.ref = "desugar" }
+newpipe-extractor = { group = "com.github.TeamNewPipe", name = "NewPipeExtractor", version.ref = "newpipe" }
 junit = { group = "junit", name = "junit", version.ref = "junit" }
 
 [plugins]
