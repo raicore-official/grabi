@@ -7,6 +7,8 @@ import com.raisoft.grabi.domain.model.FormatSpec
 import com.raisoft.grabi.domain.model.MediaInfo
 import com.raisoft.grabi.domain.model.MediaKind
 import com.raisoft.grabi.domain.model.MediaOption
+import com.yausername.aria2c.Aria2c
+import com.yausername.ffmpeg.FFmpeg
 import com.yausername.youtubedl_android.YoutubeDL
 import com.yausername.youtubedl_android.YoutubeDLException
 import com.yausername.youtubedl_android.YoutubeDLRequest
@@ -37,6 +39,12 @@ class YtDlpEngine @Inject constructor(
 
     fun binaryVersion(): String? =
         runCatching { YoutubeDL.getInstance().versionName(context) }.getOrNull()
+
+    suspend fun updateEngine(): String = withContext(Dispatchers.IO) {
+        ensureInitialized()
+        YoutubeDL.getInstance().updateYoutubeDL(context, YoutubeDL.UpdateChannel.STABLE)
+        binaryVersion() ?: "unknown"
+    }
 
     fun cancel(processId: String) {
         YoutubeDL.getInstance().destroyProcessById(processId)
@@ -80,6 +88,8 @@ class YtDlpEngine @Inject constructor(
             .addOption("--no-playlist")
             .addOption("--restrict-filenames")
             .addOption("--newline")
+            .addOption("--no-simulate")
+            .addOption("--progress")
             .addOption("-o", File(outputDir, "%(title)s.%(ext)s").absolutePath)
             .addOption("--print", "after_move:filepath")
         if (LinkValidator.isDirectMediaUrl(url)) {
@@ -114,7 +124,12 @@ class YtDlpEngine @Inject constructor(
     private suspend fun ensureInitialized() {
         initMutex.withLock {
             if (!initialized) {
-                withContext(Dispatchers.IO) { YoutubeDL.getInstance().init(context) }
+                withContext(Dispatchers.IO) {
+                    YoutubeDL.getInstance().init(context)
+                    // YoutubeDL only points --ffmpeg-location at the binary; extraction happens here.
+                    FFmpeg.getInstance().init(context)
+                    Aria2c.getInstance().init(context)
+                }
                 initialized = true
             }
         }
