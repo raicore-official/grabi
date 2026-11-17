@@ -8,7 +8,7 @@ const observer = new IntersectionObserver((entries) => {
 }, { threshold: 0.12 });
 document.querySelectorAll(".reveal").forEach((el) => observer.observe(el));
 
-const downloadLinks = document.querySelectorAll('a[href*="grabi-v0.3.1.apk"]');
+const downloadLinks = document.querySelectorAll('a[href*="grabi-v0.4.1.apk"]');
 downloadLinks.forEach((link) => {
   link.addEventListener("click", () => {
     link.classList.add("clicked");

@@ -76,15 +76,15 @@ import com.raisoft.grabi.ui.theme.SiteBrand
 import com.raisoft.grabi.ui.theme.onVideo
 import com.raisoft.grabi.ui.theme.videoScrim
 
-private data class QuickSite(val name: String, val url: String, val color: Color)
+private data class QuickSite(val name: String, val url: String, val color: Color, val logoUrl: String)
 
 private val QUICK_SITES = listOf(
-    QuickSite("YouTube", "https://www.youtube.com", SiteBrand.YouTube),
-    QuickSite("Instagram", "https://www.instagram.com", SiteBrand.Instagram),
-    QuickSite("Facebook", "https://www.facebook.com", SiteBrand.Facebook),
-    QuickSite("TikTok", "https://www.tiktok.com", SiteBrand.TikTok),
-    QuickSite("Pinterest", "https://www.pinterest.com", SiteBrand.Pinterest),
-    QuickSite("X", "https://x.com", SiteBrand.X),
+    QuickSite("YouTube", "https://www.youtube.com", SiteBrand.YouTube, "https://www.youtube.com/favicon.ico"),
+    QuickSite("Instagram", "https://www.instagram.com", SiteBrand.Instagram, "https://www.instagram.com/favicon.ico"),
+    QuickSite("Facebook", "https://www.facebook.com", SiteBrand.Facebook, "https://www.facebook.com/favicon.ico"),
+    QuickSite("TikTok", "https://www.tiktok.com", SiteBrand.TikTok, "https://www.tiktok.com/favicon.ico"),
+    QuickSite("Pinterest", "https://www.pinterest.com", SiteBrand.Pinterest, "https://www.pinterest.com/favicon.ico"),
+    QuickSite("X", "https://x.com", SiteBrand.X, "https://x.com/favicon.ico"),
 )
 
 @Composable
@@ -244,14 +244,13 @@ fun HomeScreen(
                                 modifier = Modifier.size(48.dp),
                             ) {
                                 Box(contentAlignment = Alignment.Center) {
-                                    Text(
-                                        text = site.name.take(1),
-                                        style = MaterialTheme.typography.titleMedium,
-                                        color = if (site.name == "TikTok" || site.name == "X") {
-                                            SiteBrand.OnLight
-                                        } else {
-                                            SiteBrand.OnDark
-                                        },
+                                    AsyncImage(
+                                        model = site.logoUrl,
+                                        contentDescription = "${site.name} logo",
+                                        modifier = Modifier
+                                            .size(30.dp)
+                                            .clip(CircleShape),
+                                        onError = null,
                                     )
                                 }
                             }

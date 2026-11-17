@@ -176,7 +176,8 @@ fun BrowserScreen(
             Row(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .padding(horizontal = 4.dp, vertical = 4.dp),
+                    .background(MaterialTheme.colorScheme.surface.copy(alpha = 0.96f))
+                    .padding(horizontal = 6.dp, vertical = 6.dp),
                 verticalAlignment = Alignment.CenterVertically,
             ) {
                 IconButton(
@@ -204,6 +205,16 @@ fun BrowserScreen(
                     singleLine = true,
                     textStyle = MaterialTheme.typography.bodySmall,
                     placeholder = { Text(stringResource(R.string.browser_url_hint)) },
+                    leadingIcon = {
+                        Icon(
+                            if (active?.url?.startsWith("https://") == true) {
+                                Icons.Rounded.Lock
+                            } else {
+                                Icons.Rounded.Tab
+                            },
+                            contentDescription = null,
+                        )
+                    },
                     keyboardOptions = KeyboardOptions(
                         keyboardType = KeyboardType.Uri,
                         imeAction = ImeAction.Go,
@@ -226,9 +237,9 @@ fun BrowserScreen(
                             contentDescription = stringResource(R.string.browser_tabs),
                         )
                     }
-                    IconButton(onClick = onClose) {
-                        Icon(Icons.Rounded.Close, contentDescription = "Close Grabi Browser")
-                    }
+                }
+                IconButton(onClick = onClose) {
+                    Icon(Icons.Rounded.Close, contentDescription = "Close Grabi Browser")
                 }
                 Box {
                     IconButton(onClick = { showMenu = true }) {
