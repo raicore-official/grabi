@@ -320,9 +320,17 @@ class DownloadManager @Inject constructor(
             extractor.setDataSource(file.absolutePath)
             var hasVideo = false
             var hasAudio = false
+            var videoDecodable = true
+            val codecs = android.media.MediaCodecList(android.media.MediaCodecList.REGULAR_CODECS)
             for (i in 0 until extractor.trackCount) {
-                val mime = extractor.getTrackFormat(i).getString(android.media.MediaFormat.KEY_MIME).orEmpty()
-                if (mime.startsWith("video/")) hasVideo = true
+                val format = extractor.getTrackFormat(i)
+                val mime = format.getString(android.media.MediaFormat.KEY_MIME).orEmpty()
+                if (mime.startsWith("video/")) {
+                    hasVideo = true
+                    if (runCatching { codecs.findDecoderForFormat(format) }.getOrNull() == null) {
+                        videoDecodable = false
+                    }
+                }
                 if (mime.startsWith("audio/")) hasAudio = true
             }
             val retriever = MediaMetadataRetriever()
@@ -332,7 +340,8 @@ class DownloadManager @Inject constructor(
             }.getOrDefault(0L)
             runCatching { retriever.release() }
             val missing = when {
-                kind == MediaKind.VIDEO && !hasVideo -> "no video track (codec unsupported or merge failed)"
+                kind == MediaKind.VIDEO && !hasVideo -> "no video track (merge failed)"
+                kind == MediaKind.VIDEO && !videoDecodable -> "video codec not decodable on this device"
                 kind == MediaKind.AUDIO && !hasAudio -> "no audio track"
                 duration <= 0 -> "zero duration"
                 else -> null
