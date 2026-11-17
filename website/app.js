@@ -27,9 +27,15 @@ downloadLinks.forEach((link) => {
       document.querySelectorAll("[data-release-version]").forEach((label) => {
         label.textContent = release.tag_name;
       });
+      const downloads = release.assets.reduce((total, asset) => total + (asset.download_count || 0), 0);
+      document.querySelectorAll("[data-download-count]").forEach((label) => {
+        label.textContent = `${downloads.toLocaleString()} free downloads · ${release.tag_name}`;
+      });
     })
     .catch(() => {
-      // Keep the checked-in release URL when GitHub is unavailable.
+      document.querySelectorAll("[data-download-count]").forEach((label) => {
+        label.textContent = "Free Android download · open source";
+      });
     });
 
   const playAction = document.querySelector(".play-action");
