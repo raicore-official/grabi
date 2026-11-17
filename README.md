@@ -2,14 +2,15 @@
 
 Open-source, VidMate-style video downloader and player for Android. No ads, no tracking, no API keys. Built by [Raisoft Studio](https://github.com/Raisulxislam).
 
-> **Status: Phase 1 of 7.** The app shell (navigation, theme, settings) is complete. Downloading, playback, browser, adblock and VPN land in later phases — see the roadmap below.
+> **Status: Phase 2 of 7.** The app shell and the yt-dlp download engine (link → format picker → download with progress) are complete. Download manager, playback, browser, adblock and VPN land in later phases — see the roadmap below.
 
 ## Features
 
 | Area | Feature | Phase |
 |---|---|---|
 | Shell | Material 3 dark-first UI, bottom nav (Home · Browser · Downloads · Library · Settings), Montserrat/charcoal-ember theme, dynamic color option | 1 ✅ |
-| Downloader | yt-dlp engine (1000+ sites), NewPipeExtractor fallback for YouTube, paste/share links, 144p–4K + mp3/m4a/opus picker, playlists, subtitles, background yt-dlp auto-update | 2 |
+| Downloader | yt-dlp engine (1000+ sites), paste/share links, 144p–4K + mp3/m4a/opus picker, English subtitles, background yt-dlp auto-update, cancel | 2 ✅ |
+| Downloader+ | NewPipeExtractor YouTube fallback (P4), playlist/batch downloads (P3) | 3–4 |
 | Download manager | Foreground service + WorkManager, queue, pause/resume/retry, parallel limit, Wi-Fi-only, aria2 for direct links, speed/ETA notifications, MediaStore/SAF | 3 |
 | Player | Media3/ExoPlayer, YouTube streaming without an API key, quality/speed, PiP, background audio with MediaSession notification, history, favorites | 4 |
 | Browser | Tabbed WebView (swappable interface), popular-site grid, floating download button, EasyList/EasyPrivacy/uBlock adblock with per-site allowlist | 5 |
@@ -29,10 +30,10 @@ Single Gradle module (`:app`), clean-architecture packages, unidirectional data 
 │   theme/       Raisoft charcoal/ember tokens, Montserrat │
 ├──────────────────────────────────────────────────────────┤
 │ domain/        pure Kotlin: models, LinkValidator,       │
-│                use cases (from Phase 2)                  │
+│                MediaFormatMapper (format selection)      │
 ├──────────────────────────────────────────────────────────┤
 │ data/          settings (DataStore) ✅                    │
-│                download engine (yt-dlp/NewPipe) — P2     │
+│                download engine (yt-dlp + ffmpeg) ✅ P2    │
 │                db (Room: downloads/history/favorites) — P3│
 │                browser + adblock — P5 · vpn — P6         │
 └──────────────────────────────────────────────────────────┘
@@ -52,6 +53,14 @@ Local build (optional, needs JDK 17 + Android SDK 34):
 ```
 
 Requirements: minSdk 26 (Android 8.0), targetSdk 34, Kotlin 2.0.21, AGP 8.5.2, Gradle 8.9.
+
+## Download engine (Phase 2)
+
+- `YtDlpEngine` wraps [youtubedl-android](https://github.com/yausername/youtubedl-android) 0.18.1 (`library` + `ffmpeg` artifacts). Init is lazy, mutex-guarded and off the main thread; the app warms it up at startup and then auto-updates the yt-dlp binary from the STABLE GitHub channel in the background.
+- Flow: paste a link or share text to Grabi (`ACTION_SEND`) → `--dump-json` info fetch → `MediaFormatMapper` builds the picker (every available height up to 4K as merged MP4, plus MP3/M4A/Opus audio extraction) → download with live percent/ETA and cancel (`destroyProcessById`).
+- Video downloads merge best video + best audio into MP4 via the bundled ffmpeg; audio uses `-x --audio-format`. Optional English subtitles are written as `.srt`.
+- Phase 2 output goes to the app-specific external folder `Android/data/com.raisoft.grabi/files/Grabi` (no storage permission needed). MediaStore/SAF export, the persistent queue and pause/resume arrive with the Phase 3 download manager.
+- Playlists are intentionally out of scope in Phase 2 (`--no-playlist`); batch downloads land in Phase 3. NewPipeExtractor + core-library desugaring land in Phase 4 with the player.
 
 ### Signing a release
 
@@ -90,7 +99,7 @@ Add four repository secrets (Settings → Secrets and variables → Actions): `K
 | Montserrat font | [JulietaUla/Montserrat](https://github.com/JulietaUla/Montserrat) | SIL OFL 1.1 | Brand typography | Raisoft brand font, OFL embeddable |
 | JUnit 4 | [junit-team/junit4](https://github.com/junit-team/junit4) | EPL-1.0 | Unit tests (test-only) | Standard |
 
-**Maintenance flags:** youtubedl-android moved from JitPack (`com.github.yausername`) to Maven Central under `io.github.junkfood02.youtubedl-android` (Seal's author). The old JitPack coordinates are stale — use the new ones. NewPipeExtractor needs core-library desugaring (`desugar_jdk_libs_nio`) below API 33; that gets added in Phase 2. Versions in `gradle/libs.versions.toml` are pinned to verified-stable releases; Dependabot proposes weekly bumps.
+**Maintenance flags:** youtubedl-android moved from JitPack (`com.github.yausername`) to Maven Central under `io.github.junkfood02.youtubedl-android` (Seal's author). The old JitPack coordinates are stale — use the new ones. NewPipeExtractor needs core-library desugaring (`desugar_jdk_libs_nio`) below API 33; that gets added in Phase 4 with the player. Versions in `gradle/libs.versions.toml` are pinned to verified-stable releases; Dependabot proposes weekly bumps.
 
 ## License
 
@@ -119,7 +128,7 @@ Practical consequence: anyone distributing a modified Grabi must publish their s
 - **Site breakage:** YouTube changes frequently; yt-dlp/NewPipeExtractor need updates. yt-dlp binary auto-update (P2) mitigates; extractor bumps ship with app updates.
 - **Play Store:** not distributable there (downloader policy). GitHub/F-Droid only.
 - **DRM/EME:** WebView cannot play or download DRM-protected streams (Netflix etc.).
-- **Scoped storage:** downloads go through MediaStore/SAF; direct filesystem paths are restricted on Android 10+.
+- **Scoped storage:** Phase 2 writes to the app-specific external dir (uninstall deletes it); MediaStore/SAF export arrives in Phase 3. Direct filesystem paths are restricted on Android 10+.
 - **VPN:** user-supplied configs only; no bundled servers. Kill switch and split tunneling are best-effort on Android (always-on VPN is a system setting).
 - **GPL obligations:** distributing binaries requires offering source.
 - **Low-end devices:** Python+yt-dlp startup is heavy; engine init is lazy and off the main thread (P2).
