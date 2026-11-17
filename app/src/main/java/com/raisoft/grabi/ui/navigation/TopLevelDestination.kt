@@ -10,6 +10,7 @@ enum class TopLevelDestination(
     @DrawableRes val iconRes: Int,
 ) {
     HOME("home", R.string.nav_home, R.drawable.ic_nav_home),
+    GRAB("grab", R.string.nav_grab, R.drawable.ic_nav_grab),
     BROWSER("browser", R.string.nav_browser, R.drawable.ic_nav_browser),
     DOWNLOADS("downloads", R.string.nav_downloads, R.drawable.ic_nav_downloads),
     LIBRARY("library", R.string.nav_library, R.drawable.ic_nav_library),

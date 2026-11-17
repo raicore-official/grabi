@@ -7,6 +7,7 @@ import androidx.compose.animation.fadeOut
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -21,6 +22,7 @@ import com.raisoft.grabi.ui.components.GlassNavBar
 import com.raisoft.grabi.ui.navigation.TopLevelDestination
 import com.raisoft.grabi.ui.screens.browser.BrowserScreen
 import com.raisoft.grabi.ui.screens.downloads.DownloadsScreen
+import com.raisoft.grabi.ui.screens.grab.GrabScreen
 import com.raisoft.grabi.ui.screens.home.HomeScreen
 import com.raisoft.grabi.ui.screens.library.LibraryScreen
 import com.raisoft.grabi.ui.screens.player.PlayerScreen
@@ -36,6 +38,18 @@ fun GrabiApp(pendingLink: PendingLink) {
 
     fun openPlayer(url: String, title: String) {
         navController.navigate("player?url=${Uri.encode(url)}&title=${Uri.encode(title)}")
+    }
+
+    fun openGrab() {
+        navController.navigate(TopLevelDestination.GRAB.route) {
+            launchSingleTop = true
+        }
+    }
+
+    LaunchedEffect(navController) {
+        pendingLink.url.collect { url ->
+            if (url != null) openGrab()
+        }
     }
 
     Box(Modifier.fillMaxSize()) {
@@ -58,15 +72,20 @@ fun GrabiApp(pendingLink: PendingLink) {
                             restoreState = true
                         }
                     },
+                    onGrab = { url ->
+                        pendingLink.offer(url)
+                        openGrab()
+                    },
                 )
+            }
+            composable(TopLevelDestination.GRAB.route) {
+                GrabScreen()
             }
             composable(TopLevelDestination.BROWSER.route) {
                 BrowserScreen(
                     onDownloadPage = { url ->
                         pendingLink.offer(url)
-                        navController.navigate(TopLevelDestination.HOME.route) {
-                            launchSingleTop = true
-                        }
+                        openGrab()
                     },
                 )
             }

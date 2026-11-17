@@ -50,7 +50,7 @@ fun GlassNavBar(
                 ),
                 shape = shape,
             )
-            .padding(horizontal = 10.dp, vertical = 8.dp),
+            .padding(horizontal = 6.dp, vertical = 8.dp),
         horizontalArrangement = Arrangement.SpaceEvenly,
         verticalAlignment = Alignment.CenterVertically,
     ) {
@@ -72,7 +72,7 @@ fun GlassNavBar(
                         },
                     )
                     .clickable { onSelect(destination) }
-                    .padding(horizontal = 18.dp, vertical = 10.dp),
+                    .padding(horizontal = 12.dp, vertical = 10.dp),
                 contentAlignment = Alignment.Center,
             ) {
                 Icon(
