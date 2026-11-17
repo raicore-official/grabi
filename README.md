@@ -2,7 +2,7 @@
 
 Open-source, VidMate-style video downloader and player for Android. No ads, no tracking, no API keys. Built by [Raisoft Studio](https://github.com/Raisulxislam).
 
-> **Status: Phase 5 of 7.** Shell, yt-dlp engine, download manager, Media3 player and the built-in browser (tabs, incognito, site grid, video/audio/image detection, EasyList/EasyPrivacy/uBlock adblock with per-site allowlist) are complete. VPN and release polish land in later phases — see the roadmap below.
+> **Status: Phase 6 of 7.** Shell, yt-dlp engine, download manager, Media3 player, built-in browser (tabs, incognito, site grid, video/audio/image detection, EasyList/EasyPrivacy/uBlock adblock with per-site allowlist) and the WireGuard VPN (config import, country-organized community config finder, handshake verification, kill switch, split tunneling) are complete. Release polish lands in Phase 7 — see the roadmap below.
 
 ## Features
 
@@ -14,7 +14,8 @@ Open-source, VidMate-style video downloader and player for Android. No ads, no t
 | Download manager | Room-backed queue, foreground service + WorkManager recovery, pause/resume/retry/cancel/delete, 1–3 parallel downloads, Wi-Fi-only, speed/ETA notifications, MediaStore publish (Android 10+), aria2 for direct media links, filters | 3 ✅ |
 | Player | Media3/ExoPlayer, NewPipeExtractor YouTube streaming without an API key, quality/speed pickers, video-only+audio merging, PiP, audio-only mode with MediaSession background playback, resume positions, history, favorites, in-player download button, offline playback of completed downloads | 4 ✅ |
 | Browser | Tabbed WebView behind a swappable `BrowserEngine` interface, popular-site grid, DuckDuckGo search, incognito tabs, floating download button, video/audio/**image** detection, EasyList/EasyPrivacy/uBlock adblock with auto-update and per-site allowlist, browser history | 5 ✅ |
-| VPN | VpnService + WireGuard/Outline, import your own configs/keys/subscriptions, split tunneling, kill switch. No bundled servers | 6 |
+| VPN | WireGuard via the official embeddable tunnel library, import configs (paste/file/URL), runtime country-organized config finder across public GitHub sources (nothing bundled, untrusted-server warnings), handshake verification before “connected”, kill switch, split tunneling, always-on VPN integration. No hardcoded servers or keys | 6 ✅ |
+| VPN+ | Outline/sing-box providers behind the `TunnelBackend` seam, QR import | backlog |
 | Release | Settings polish, crash handling, F-Droid + GitHub Releases | 7 |
 
 ## Architecture
@@ -30,7 +31,8 @@ Single Gradle module (`:app`), clean-architecture packages, unidirectional data 
 │   theme/       Raisoft charcoal/ember tokens, Montserrat │
 ├──────────────────────────────────────────────────────────┤
 │ domain/        pure Kotlin: models, LinkValidator,       │
-│                MediaFormatMapper, StreamOptionMapper     │
+│                MediaFormatMapper, StreamOptionMapper,    │
+│                CountryClassifier, WgConfigUtils          │
 ├──────────────────────────────────────────────────────────┤
 │ data/          settings (DataStore) ✅                    │
 │                download engine (yt-dlp + ffmpeg) ✅ P2    │
@@ -39,7 +41,7 @@ Single Gradle module (`:app`), clean-architecture packages, unidirectional data 
 │                playback (Media3 session service) ✅ P4    │
 │                browser (tabs, WebView engine) ✅ P5       │
 │                adblock (filter lists, matcher) ✅ P5      │
-│                vpn — P6                                   │
+│                vpn (WireGuard backend, finder) ✅ P6    │
 └──────────────────────────────────────────────────────────┘
         Hilt wires everything · coroutines/Flow throughout
 ```
@@ -95,6 +97,17 @@ Requirements: minSdk 26 (Android 8.0), targetSdk 34, Kotlin 2.0.21, AGP 8.5.2, G
 - **Adblock:** `AdblockEngine` fetches EasyList + EasyPrivacy + uBlock filters on first browser use and auto-refreshes when older than 7 days (manual update in Settings/menu). The lean Kotlin `FilterListParser` compiles `||domain^`, `@@` exceptions, `||domain/path` and plain substring rules into hash-set/suffix matchers — O(1) per request. Rules with options (`$third-party`, `$domain=`) and cosmetic rules are deliberately skipped: under-block rather than break sites. Per-site allowlist lives in Settings; blocked requests get an empty response.
 - `usesCleartextTraffic` is enabled because a browser must open http:// sites; everything else stays TLS-first.
 
+## VPN (Phase 6)
+
+- **Engine:** the official [wireguard-android](https://github.com/WireGuard/wireguard-android) embeddable `tunnel` artifact (1.0.20260102, Apache-2.0) with the wireguard-go userspace backend — no root, no external app. `WireGuardBackend` implements a small `TunnelBackend` interface so other protocols (Outline/sing-box) can be added later without touching the UI or state machine. The library's `GoBackend$VpnService` is merged from its own manifest; Grabi adds no VPN service of its own.
+- **Nothing hardcoded:** no servers, keys or configs ship in the app. Configs come from (a) **import** — paste text, pick a `.conf` file (SAF), or fetch a URL; (b) the **finder** — at runtime it searches public GitHub repositories (three queries, ≤6 repos, ≤24 candidates), downloads `.conf` files, keeps only ones that parse and have a peer endpoint, dedupes by endpoint+key, and groups them by country inferred from file/path/repo names (16 common countries + extras, `CountryClassifier`). Results are cached for an hour and labeled with their source repository.
+- **Trust model:** community configs are explicitly marked *untrusted* — the server operator can observe traffic and public keys are often shared account keys. Connecting to one requires an explicit risk-acceptance dialog. Importing a config from a server you control is the recommended path and is labeled differently.
+- **Verification:** after the tunnel comes up, the repository polls per-peer statistics for up to 15 s and only reports **Connected** once a real WireGuard handshake (`latestHandshakeEpochMillis`) is observed. No handshake → automatic disconnect with a clear error, so dead configs never look “connected”.
+- **Kill switch (on by default):** if an established tunnel drops unexpectedly, Grabi immediately brings up a generated blackhole tunnel (fresh random keys, endpoint 127.0.0.1:9, all routes) through the same backend, so traffic is blocked instead of leaking onto the normal connection mid-session. Reconnecting replaces it automatically; turning the kill switch off releases it. Failed connection attempts do *not* trigger the block. For OS-level guarantees the screen shows always-on/lockdown status and links to the system VPN settings; with system always-on enabled, Android restarts the tunnel service after process death and Grabi auto-reconnects the last config (`GoBackend.setAlwaysOnCallback`).
+- **Split tunneling:** per-app exclude list (launchable apps picker) written into the config's `ExcludedApplications` attribute, which the backend applies via `VpnService.Builder.addDisallowedApplication`. Applies on the next connect.
+- **Storage:** configs (including private keys) live in app-private DataStore; `allowBackup=false` keeps them out of cloud backups. Tunnel names follow WireGuard's 15-char `[a-zA-Z0-9_=+.-]` rule (`WgConfigUtils.sanitizeName`).
+- **Crash safety:** all backend calls are wrapped and run on `Dispatchers.IO`; unexpected `onStateChange(DOWN)` callbacks drive the state machine instead of crashing it; the repository is created eagerly at app startup so the always-on callback is always registered.
+
 ### Signing a release
 
 Releases build on tag push (`v*`) via `.github/workflows/release.yml`. Create a keystore **locally, never commit it**:
@@ -127,8 +140,8 @@ Add four repository secrets (Settings → Secrets and variables → Actions): `K
 | OkHttp | [square/okhttp](https://github.com/square/okhttp) | Apache-2.0 | Extractor HTTP (P4 ✅), filter lists + image downloads (P5 ✅) | Lean, maintained |
 | Coil | [coil-kt/coil](https://github.com/coil-kt/coil) | Apache-2.0 | Thumbnails (P4 ✅) | Kotlin-first, Compose-native |
 | adblock-rust *(optional upgrade)* | [brave/adblock-rust](https://github.com/brave/adblock-rust) | MPL-2.0 | High-performance filter engine (P5) | Brave-maintained; P5 starts with a lean Kotlin ABP parser, upgrade path if needed |
-| wireguard-android | [WireGuard/wireguard-android](https://github.com/WireGuard/wireguard-android) | Apache-2.0 | Tunnel library + wireguard-go (MIT) backend (P6) | Official, embeddable tunnel |
-| Outline SDK *(pluggable provider)* | [Jigsaw-Code/outline-sdk](https://github.com/Jigsaw-Code/outline-sdk) | Apache-2.0 | Outline key support (P6) | Maintained by Jigsaw/Google |
+| wireguard-android | [WireGuard/wireguard-android](https://github.com/WireGuard/wireguard-android) | Apache-2.0 | Tunnel library + wireguard-go (MIT) backend (P6 ✅) | Official, embeddable tunnel; minSdk 24, all four ABIs bundled |
+| Outline SDK *(backlog provider)* | [Jigsaw-Code/outline-sdk](https://github.com/Jigsaw-Code/outline-sdk) | Apache-2.0 | Outline key support via the `TunnelBackend` seam (backlog) | Maintained by Jigsaw/Google; needs a Go tun2socks build, deferred to keep P6 lean |
 | Montserrat font | [JulietaUla/Montserrat](https://github.com/JulietaUla/Montserrat) | SIL OFL 1.1 | Brand typography | Raisoft brand font, OFL embeddable |
 | JUnit 4 | [junit-team/junit4](https://github.com/junit-team/junit4) | EPL-1.0 | Unit tests (test-only) | Standard |
 
@@ -165,7 +178,7 @@ Practical consequence: anyone distributing a modified Grabi must publish their s
 - **Background limits:** Android 12+ blocks foreground-service starts from the background; if the OS kills the app mid-download, the queue resumes on next launch (WorkManager + startup recovery). Pause/resume restarts the yt-dlp process and continues the `.part` file rather than freezing it in place.
 - **Player:** YouTube stream URLs are session-bound and expire; a stale history entry may need a re-resolve (Retry). PiP shows the whole player screen scaled down (controls included) rather than a video-only surface. Audio-only background playback relies on the media notification; some OEM battery killers still stop it.
 - **Browser:** detection is extension/MIME-based — MSE/blob streams (YouTube's player) are not sniffed; use “Download this page” there. Adblock is network-level only (no cosmetic filtering, option rules skipped). Incognito shares the cookie jar while open (cleared on last incognito close). WebView fullscreen video (`onShowCustomView`) is not handled yet.
-- **VPN:** user-supplied configs only; no bundled servers. Kill switch and split tunneling are best-effort on Android (always-on VPN is a system setting).
+- **VPN:** community configs found by the finder are untrusted — their operators can see/log traffic, keys may be shared, and servers die without notice; the handshake check and risk dialog mitigate but cannot make them safe. Import your own config for real privacy. The kill switch blocks traffic through a blackhole tunnel while the app process is alive; if the OS kills the whole process, only the system always-on VPN + lockdown settings can guarantee no leak (the screen links to them). The tunnel lives in the app process, so force-stopping Grabi drops it. Split tunneling applies on reconnect. Finder depends on GitHub's unauthenticated API limits (a few searches per refresh, results cached 1 h) and on community repos existing — it can legitimately return nothing. Outline/sing-box and QR import are backlog.
 - **GPL obligations:** distributing binaries requires offering source.
 - **Low-end devices:** Python+yt-dlp startup is heavy; engine init is lazy and off the main thread (P2).
 
