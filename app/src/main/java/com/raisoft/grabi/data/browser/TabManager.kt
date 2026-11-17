@@ -2,6 +2,8 @@ package com.raisoft.grabi.data.browser
 
 import android.content.Context
 import android.webkit.CookieManager
+import android.webkit.WebChromeClient
+import android.net.Uri
 import com.raisoft.grabi.domain.model.DetectedMedia
 import dagger.hilt.android.qualifiers.ApplicationContext
 import java.util.UUID
@@ -47,6 +49,8 @@ class TabManager @Inject constructor(
     private var restored = false
     private var themeDark = false
     private var themeBackground: Int? = null
+    var onFileChooser: ((WebChromeClient.FileChooserParams) -> Unit)? = null
+    var onDownload: ((String) -> Unit)? = null
 
     val activeTab: StateFlow<Tab?> = combine(_tabs, _activeId) { tabs, id ->
         tabs.firstOrNull { it.id == id }
@@ -132,6 +136,10 @@ class TabManager @Inject constructor(
         _activeId.value?.let { engines[it] }?.reload()
     }
 
+    fun acceptFileChooser(uris: Array<Uri>?) {
+        _activeId.value?.let { engines[it] }?.acceptFileChooser(uris)
+    }
+
     private fun newTab(url: String, title: String, incognito: Boolean) = Tab(
         id = UUID.randomUUID().toString(),
         url = url,
@@ -177,6 +185,19 @@ class TabManager @Inject constructor(
                     tab.copy(detected = (tab.detected + media).takeLast(50))
                 }
             }
+        }
+
+        override fun onFileChooser(params: WebChromeClient.FileChooserParams) {
+            if (_activeId.value == id) onFileChooser?.invoke(params)
+        }
+
+        override fun onDownload(
+            url: String,
+            userAgent: String?,
+            contentDisposition: String?,
+            mimeType: String?,
+        ) {
+            if (_activeId.value == id) onDownload?.invoke(url)
         }
     }
 

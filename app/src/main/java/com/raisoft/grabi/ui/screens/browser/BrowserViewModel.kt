@@ -2,6 +2,8 @@ package com.raisoft.grabi.ui.screens.browser
 
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import android.net.Uri
+import android.webkit.WebChromeClient
 import com.raisoft.grabi.data.browser.AdblockEngine
 import com.raisoft.grabi.data.browser.BrowserEngine
 import com.raisoft.grabi.data.browser.BrowserHistoryRepository
@@ -74,6 +76,16 @@ class BrowserViewModel @Inject constructor(
     fun goForward() = tabManager.goForward()
 
     fun reload() = tabManager.reload()
+
+    fun setFileChooserHandler(handler: ((WebChromeClient.FileChooserParams) -> Unit)?) {
+        tabManager.onFileChooser = handler
+    }
+
+    fun setDownloadHandler(handler: ((String) -> Unit)?) {
+        tabManager.onDownload = handler
+    }
+
+    fun acceptFileChooser(uris: Array<Uri>?) = tabManager.acceptFileChooser(uris)
 
     fun submitUrl(input: String) {
         val trimmed = input.trim()

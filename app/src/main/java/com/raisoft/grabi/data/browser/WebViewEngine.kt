@@ -3,6 +3,12 @@ package com.raisoft.grabi.data.browser
 import android.content.Context
 import android.graphics.Bitmap
 import android.webkit.WebChromeClient
+import android.webkit.ValueCallback
+import android.webkit.DownloadListener
+import android.webkit.SslErrorHandler
+import android.net.Uri
+import android.app.DownloadManager
+import android.os.Environment
 import android.webkit.WebResourceRequest
 import android.webkit.WebResourceResponse
 import android.webkit.WebSettings
@@ -21,6 +27,7 @@ class WebViewEngine(
 ) : BrowserEngine {
 
     private var currentPageUrl = ""
+    private var fileChooserCallback: ValueCallback<Array<Uri>>? = null
 
     override val view: WebView = WebView(context)
 
@@ -40,6 +47,14 @@ class WebViewEngine(
             loadWithOverviewMode = true
         }
         view.webViewClient = object : WebViewClient() {
+            override fun onReceivedSslError(
+                view: WebView,
+                handler: SslErrorHandler,
+                error: android.net.http.SslError,
+            ) {
+                handler.cancel()
+            }
+
             override fun shouldInterceptRequest(
                 view: WebView,
                 request: WebResourceRequest,
@@ -77,6 +92,35 @@ class WebViewEngine(
             override fun onReceivedTitle(view: WebView, title: String?) {
                 listener.onTitle(title.orEmpty())
             }
+
+            override fun onShowFileChooser(
+                webView: WebView,
+                filePathCallback: ValueCallback<Array<Uri>>,
+                fileChooserParams: FileChooserParams,
+            ): Boolean {
+                fileChooserCallback?.onReceiveValue(null)
+                fileChooserCallback = filePathCallback
+                listener.onFileChooser(fileChooserParams)
+                return true
+            }
+        }
+        view.setDownloadListener { url, userAgent, contentDisposition, mimeType, _ ->
+            listener.onDownload(url, userAgent, contentDisposition, mimeType)
+            val request = DownloadManager.Request(Uri.parse(url)).apply {
+                setMimeType(mimeType)
+                setTitle(contentDisposition ?: Uri.parse(url).lastPathSegment ?: "download")
+                setDescription("Grabi Browser")
+                setNotificationVisibility(
+                    DownloadManager.Request.VISIBILITY_VISIBLE_NOTIFY_COMPLETED,
+                )
+                setDestinationInExternalFilesDir(
+                    context,
+                    Environment.DIRECTORY_DOWNLOADS,
+                    Uri.parse(url).lastPathSegment ?: "download",
+                )
+                if (!userAgent.isNullOrBlank()) addRequestHeader("User-Agent", userAgent)
+            }
+            context.getSystemService(DownloadManager::class.java).enqueue(request)
         }
     }
 
@@ -102,6 +146,13 @@ class WebViewEngine(
     }
 
     override fun destroy() {
+        fileChooserCallback?.onReceiveValue(null)
+        fileChooserCallback = null
         view.destroy()
+    }
+
+    override fun acceptFileChooser(uris: Array<Uri>?) {
+        fileChooserCallback?.onReceiveValue(uris)
+        fileChooserCallback = null
     }
 }

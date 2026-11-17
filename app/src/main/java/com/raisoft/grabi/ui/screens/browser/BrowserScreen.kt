@@ -1,5 +1,7 @@
 package com.raisoft.grabi.ui.screens.browser
 
+import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.isSystemInDarkTheme
@@ -29,6 +31,8 @@ import androidx.compose.material.icons.automirrored.rounded.ArrowBack
 import androidx.compose.material.icons.automirrored.rounded.ArrowForward
 import androidx.compose.material.icons.rounded.Audiotrack
 import androidx.compose.material.icons.rounded.Close
+import androidx.compose.material.icons.rounded.Home
+import androidx.compose.material.icons.rounded.Lock
 import androidx.compose.material.icons.rounded.Download
 import androidx.compose.material.icons.rounded.Check
 import androidx.compose.foundation.combinedClickable
@@ -59,6 +63,7 @@ import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
@@ -71,6 +76,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.toArgb
 import androidx.compose.ui.platform.LocalSoftwareKeyboardController
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.text.input.KeyboardType
@@ -78,6 +84,7 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.viewinterop.AndroidView
+import android.widget.Toast
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.raisoft.grabi.R
@@ -106,6 +113,7 @@ private val SITES = listOf(
 fun BrowserScreen(
     onDownloadPage: (String) -> Unit,
     initialUrl: String = "",
+    onClose: () -> Unit = {},
     viewModel: BrowserViewModel = hiltViewModel(),
 ) {
     val tabs by viewModel.tabs.collectAsStateWithLifecycle()
@@ -115,6 +123,12 @@ fun BrowserScreen(
     val adblockUpdating by viewModel.adblockUpdating.collectAsStateWithLifecycle()
     val downloadStates by viewModel.downloadStates.collectAsStateWithLifecycle()
     val keyboard = LocalSoftwareKeyboardController.current
+    val context = LocalContext.current
+    val fileLauncher = rememberLauncherForActivityResult(
+        ActivityResultContracts.OpenDocument(),
+    ) { uri ->
+        viewModel.acceptFileChooser(uri?.let { arrayOf(it) })
+    }
 
     val dark = settings.themeMode.resolveDark(isSystemInDarkTheme())
     val browserBackground = MaterialTheme.colorScheme.background.toArgb()
@@ -123,6 +137,16 @@ fun BrowserScreen(
     }
     LaunchedEffect(initialUrl) {
         viewModel.openInitialUrl(initialUrl)
+    }
+    LaunchedEffect(Unit) {
+        viewModel.setFileChooserHandler { params ->
+            fileLauncher.launch(
+                params.acceptTypes.filter { it.isNotBlank() }.ifEmpty { listOf("*/*") }.toTypedArray(),
+            )
+        }
+        viewModel.setDownloadHandler {
+            Toast.makeText(context, "Download started", Toast.LENGTH_SHORT).show()
+        }
     }
 
     var urlInput by remember(active?.id) { mutableStateOf(active?.url ?: "") }
@@ -191,6 +215,9 @@ fun BrowserScreen(
                             Icons.Rounded.Tab,
                             contentDescription = stringResource(R.string.browser_tabs),
                         )
+                    }
+                    IconButton(onClick = onClose) {
+                        Icon(Icons.Rounded.Close, contentDescription = "Close Grabi Browser")
                     }
                 }
                 Box {
@@ -303,8 +330,27 @@ fun BrowserScreen(
                     key(tab.id) {
                         AndroidView(
                             factory = { engine.view },
-                            modifier = Modifier.fillMaxSize(),
+                            modifier = Modifier.fillMaxWidth().weight(1f),
                         )
+                    }
+                    Surface(
+                        tonalElevation = 2.dp,
+                        modifier = Modifier.fillMaxWidth(),
+                    ) {
+                        Row(
+                            modifier = Modifier.padding(horizontal = 12.dp, vertical = 4.dp),
+                            verticalAlignment = Alignment.CenterVertically,
+                            horizontalArrangement = Arrangement.spacedBy(8.dp),
+                        ) {
+                            Icon(Icons.Rounded.Home, contentDescription = null, modifier = Modifier.size(16.dp))
+                            Text("Grabi Browser", style = MaterialTheme.typography.labelMedium)
+                            Spacer(Modifier.weight(1f))
+                            if (active?.url?.startsWith("https://") == true) {
+                                Icon(Icons.Rounded.Lock, contentDescription = "Secure HTTPS", modifier = Modifier.size(16.dp))
+                                Text("Secure", style = MaterialTheme.typography.labelSmall)
+                            }
+                            TextButton(onClick = onClose) { Text("Return to Grabi") }
+                        }
                     }
                 }
             }

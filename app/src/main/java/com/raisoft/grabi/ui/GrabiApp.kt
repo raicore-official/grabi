@@ -104,6 +104,7 @@ fun GrabiApp(pendingLink: PendingLink, pendingNav: PendingNav) {
             }
             composable(TopLevelDestination.BROWSER.route) {
                 BrowserScreen(
+                    onClose = { navController.popBackStack() },
                     onDownloadPage = { url ->
                         pendingLink.offer(url)
                         openGrab()
@@ -116,6 +117,7 @@ fun GrabiApp(pendingLink: PendingLink, pendingNav: PendingNav) {
             ) { entry ->
                 BrowserScreen(
                     initialUrl = entry.arguments?.getString("url").orEmpty(),
+                    onClose = { navController.popBackStack() },
                     onDownloadPage = { url ->
                         pendingLink.offer(url)
                         openGrab()
