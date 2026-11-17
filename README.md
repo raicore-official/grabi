@@ -2,7 +2,7 @@
 
 Open-source, VidMate-style video downloader and player for Android. No ads, no tracking, no API keys. Built by [Raisoft Studio](https://github.com/Raisulxislam).
 
-> **Status: Phase 6 of 7.** Shell, yt-dlp engine, download manager, Media3 player, built-in browser (tabs, incognito, site grid, video/audio/image detection, EasyList/EasyPrivacy/uBlock adblock with per-site allowlist) and the WireGuard VPN (config import, country-organized community config finder, handshake verification, kill switch, split tunneling) are complete. Release polish lands in Phase 7 — see the roadmap below.
+> **Status: complete — v0.1.0.** All seven roadmap phases are done: shell, yt-dlp engine, download manager, Media3 player, built-in browser (tabs, incognito, site grid, video/audio/image detection, EasyList/EasyPrivacy/uBlock adblock with per-site allowlist), WireGuard VPN (config import, country-organized community config finder, handshake verification, kill switch, split tunneling) and release polish (crash capture, F-Droid metadata, GitHub Releases). Backlog items are marked below.
 
 ## Features
 
@@ -16,7 +16,7 @@ Open-source, VidMate-style video downloader and player for Android. No ads, no t
 | Browser | Tabbed WebView behind a swappable `BrowserEngine` interface, popular-site grid, DuckDuckGo search, incognito tabs, floating download button, video/audio/**image** detection, EasyList/EasyPrivacy/uBlock adblock with auto-update and per-site allowlist, browser history | 5 ✅ |
 | VPN | WireGuard via the official embeddable tunnel library, import configs (paste/file/URL), runtime country-organized config finder across public GitHub sources (nothing bundled, untrusted-server warnings), handshake verification before “connected”, kill switch, split tunneling, always-on VPN integration. No hardcoded servers or keys | 6 ✅ |
 | VPN+ | Outline/sing-box providers behind the `TunnelBackend` seam, QR import | backlog |
-| Release | Settings polish, crash handling, F-Droid + GitHub Releases | 7 |
+| Release | Crash capture with shareable crash log in Settings → About, F-Droid fastlane metadata, GitHub Releases (signed when secrets are set, debug-signed fallback otherwise) | 7 ✅ |
 
 ## Architecture
 
@@ -42,6 +42,7 @@ Single Gradle module (`:app`), clean-architecture packages, unidirectional data 
 │                browser (tabs, WebView engine) ✅ P5       │
 │                adblock (filter lists, matcher) ✅ P5      │
 │                vpn (WireGuard backend, finder) ✅ P6    │
+│                crash (local crash capture) ✅ P7        │
 └──────────────────────────────────────────────────────────┘
         Hilt wires everything · coroutines/Flow throughout
 ```
@@ -119,6 +120,18 @@ base64 -w0 grabi-release.jks > keystore.b64   # Git Bash; on macOS: base64 -i gr
 ```
 
 Add four repository secrets (Settings → Secrets and variables → Actions): `KEYSTORE_BASE64` (contents of keystore.b64), `KEYSTORE_PASSWORD`, `KEY_ALIAS` (`grabi`), `KEY_PASSWORD`. Then `git tag v0.1.0 && git push origin v0.1.0`. The workflow signs the APK and publishes it to GitHub Releases with auto-generated notes. Keep the keystore backed up — losing it means you can never update the app under the same signature.
+
+**Signing is optional:** if any of the four secrets is missing, the workflow warns and publishes a **debug-signed APK** instead — installable via sideloading, but it cannot update an install signed with a different key. Add the secrets and push a new tag to switch to properly signed releases automatically.
+
+### F-Droid
+
+Store metadata lives in `fastlane/metadata/android/en-US/` (title, short/full description, per-versionCode changelogs) and is picked up automatically by F-Droid's build server. Getting listed is a community process, done outside this repo:
+
+1. Fork [fdroiddata](https://gitlab.com/fdroid/fdroiddata) on GitLab.
+2. Add `metadata/com.raisoft.grabi.yml` (copy an existing GPL app as a template): `Repo Type: git`, `Repo: https://github.com/raicore-official/grabi`, and a build block with `versionName: 0.1.0`, `versionCode: 1`, `commit: v0.1.0`, `gradle: yes`.
+3. Validate locally with `fdroid lint` / `fdroid build` if you can, then open a merge request and respond to reviewer feedback.
+
+F-Droid builds from source and signs with its own key, so no keystore secrets are needed for that channel. Screenshots (optional but recommended) go in `fastlane/metadata/android/en-US/images/phoneScreenshots/`.
 
 ## Open-source libraries
 

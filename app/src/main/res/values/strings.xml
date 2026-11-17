@@ -202,5 +202,5 @@
     <string name="roadmap_phase_4">Phase 4 · Media3 player, audio mode, background playback — done</string>
     <string name="roadmap_phase_5">Phase 5 · Browser, video/image detection, adblock, incognito — done</string>
     <string name="roadmap_phase_6">Phase 6 · VPN (WireGuard, config finder, kill switch) — done</string>
-    <string name="roadmap_phase_7">Phase 7 · Polish, crash handling, F-Droid release</string>
+    <string name="roadmap_phase_7">Phase 7 · Polish, crash handling, F-Droid release — done</string>
 </resources>
