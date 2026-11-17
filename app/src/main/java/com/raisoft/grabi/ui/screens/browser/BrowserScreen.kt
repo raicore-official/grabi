@@ -41,6 +41,7 @@ import androidx.compose.material3.Button
 import androidx.compose.material3.DropdownMenu
 import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.ExperimentalMaterial3Api
+import androidx.compose.material3.FilterChip
 import androidx.compose.material3.FloatingActionButton
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
@@ -106,6 +107,7 @@ fun BrowserScreen(
     var urlInput by remember(active?.id) { mutableStateOf(active?.url ?: "") }
     var showTabs by remember { mutableStateOf(false) }
     var showDetected by remember { mutableStateOf(false) }
+    var detectedSection by remember { mutableStateOf(0) }
     var showHistory by remember { mutableStateOf(false) }
     var showMenu by remember { mutableStateOf(false) }
 
@@ -315,7 +317,7 @@ fun BrowserScreen(
             onClick = { showDetected = true },
             modifier = Modifier
                 .align(Alignment.BottomEnd)
-                .padding(16.dp),
+                .padding(start = 16.dp, end = 16.dp, top = 16.dp, bottom = 96.dp),
         ) {
             BadgedBox(
                 badge = {
@@ -418,6 +420,8 @@ fun BrowserScreen(
 
     if (showDetected && active != null) {
         val tab = active!!
+        val avMedia = tab.detected.filter { it.kind != MediaKind.IMAGE }
+        val images = tab.detected.filter { it.kind == MediaKind.IMAGE }
         ModalBottomSheet(onDismissRequest = { showDetected = false }) {
             Column(
                 modifier = Modifier.padding(horizontal = 20.dp),
@@ -427,22 +431,58 @@ fun BrowserScreen(
                     text = stringResource(R.string.browser_detected_title),
                     style = MaterialTheme.typography.titleMedium,
                 )
-                if (tab.url.startsWith("http")) {
-                    OutlinedButton(
-                        onClick = {
-                            showDetected = false
-                            onDownloadPage(tab.url)
-                        },
-                        modifier = Modifier.fillMaxWidth(),
-                    ) {
-                        Icon(Icons.Rounded.Download, null, Modifier.size(18.dp))
-                        Spacer(Modifier.width(8.dp))
-                        Text(stringResource(R.string.browser_download_page))
-                    }
+                Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                    FilterChip(
+                        selected = detectedSection == 0,
+                        onClick = { detectedSection = 0 },
+                        label = { Text(stringResource(R.string.browser_section_video, avMedia.size)) },
+                        leadingIcon = { Icon(Icons.Rounded.VideoFile, null, Modifier.size(16.dp)) },
+                    )
+                    FilterChip(
+                        selected = detectedSection == 1,
+                        onClick = { detectedSection = 1 },
+                        label = { Text(stringResource(R.string.browser_section_images, images.size)) },
+                        leadingIcon = { Icon(Icons.Rounded.Image, null, Modifier.size(16.dp)) },
+                    )
                 }
-                if (tab.detected.isEmpty()) {
+                if (detectedSection == 0) {
+                    if (tab.url.startsWith("http")) {
+                        OutlinedButton(
+                            onClick = {
+                                showDetected = false
+                                onDownloadPage(tab.url)
+                            },
+                            modifier = Modifier.fillMaxWidth(),
+                        ) {
+                            Icon(Icons.Rounded.Download, null, Modifier.size(18.dp))
+                            Spacer(Modifier.width(8.dp))
+                            Text(stringResource(R.string.browser_download_page))
+                        }
+                        Text(
+                            text = stringResource(R.string.browser_page_video_hint),
+                            style = MaterialTheme.typography.bodySmall,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        )
+                    }
+                    if (avMedia.isEmpty()) {
+                        Text(
+                            text = stringResource(R.string.browser_detected_empty),
+                            style = MaterialTheme.typography.bodySmall,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        )
+                    } else {
+                        LazyColumn(
+                            modifier = Modifier.heightIn(max = 360.dp),
+                            verticalArrangement = Arrangement.spacedBy(8.dp),
+                        ) {
+                            items(avMedia.reversed(), key = { it.url }) { media ->
+                                DetectedRow(media) { viewModel.downloadDetected(media) }
+                            }
+                        }
+                    }
+                } else if (images.isEmpty()) {
                     Text(
-                        text = stringResource(R.string.browser_detected_empty),
+                        text = stringResource(R.string.browser_images_empty),
                         style = MaterialTheme.typography.bodySmall,
                         color = MaterialTheme.colorScheme.onSurfaceVariant,
                     )
@@ -451,7 +491,7 @@ fun BrowserScreen(
                         modifier = Modifier.heightIn(max = 360.dp),
                         verticalArrangement = Arrangement.spacedBy(8.dp),
                     ) {
-                        items(tab.detected.reversed(), key = { it.url }) { media ->
+                        items(images.reversed(), key = { it.url }) { media ->
                             DetectedRow(media) { viewModel.downloadDetected(media) }
                         }
                     }

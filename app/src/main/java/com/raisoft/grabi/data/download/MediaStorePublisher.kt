@@ -46,7 +46,7 @@ object MediaStorePublisher {
         return uri
     }
 
-    private fun mimeFor(ext: String, kind: MediaKind): String = when (kind) {
+    fun mimeFor(ext: String, kind: MediaKind): String = when (kind) {
         MediaKind.VIDEO -> "video/mp4"
         MediaKind.IMAGE -> when (ext) {
             "png" -> "image/png"

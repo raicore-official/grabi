@@ -5,6 +5,7 @@ import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
@@ -94,7 +95,10 @@ fun LibraryScreen(
                         message = stringResource(R.string.library_history_empty),
                     )
                 } else {
-                    LazyColumn(verticalArrangement = Arrangement.spacedBy(12.dp)) {
+                    LazyColumn(
+                        verticalArrangement = Arrangement.spacedBy(12.dp),
+                        contentPadding = PaddingValues(bottom = 100.dp),
+                    ) {
                         items(history, key = { it.url }) { entry ->
                             MediaRow(
                                 thumbnailUrl = entry.thumbnailUrl,
@@ -118,7 +122,10 @@ fun LibraryScreen(
                         message = stringResource(R.string.library_favorites_empty),
                     )
                 } else {
-                    LazyColumn(verticalArrangement = Arrangement.spacedBy(12.dp)) {
+                    LazyColumn(
+                        verticalArrangement = Arrangement.spacedBy(12.dp),
+                        contentPadding = PaddingValues(bottom = 100.dp),
+                    ) {
                         items(favorites, key = { it.url }) { entry ->
                             MediaRow(
                                 thumbnailUrl = entry.thumbnailUrl,
@@ -142,7 +149,10 @@ fun LibraryScreen(
                         message = stringResource(R.string.library_downloads_empty),
                     )
                 } else {
-                    LazyColumn(verticalArrangement = Arrangement.spacedBy(12.dp)) {
+                    LazyColumn(
+                        verticalArrangement = Arrangement.spacedBy(12.dp),
+                        contentPadding = PaddingValues(bottom = 100.dp),
+                    ) {
                         items(downloads, key = { it.id }) { entry ->
                             MediaRow(
                                 thumbnailUrl = null,

@@ -51,6 +51,7 @@ class DownloadManager @Inject constructor(
     @Volatile private var parallelism = 2
     @Volatile private var wifiOnly = false
     @Volatile private var wifiAvailable = true
+    @Volatile private var destination = ""
 
     val downloads: StateFlow<List<DownloadEntity>> =
         dao.observeAll().stateIn(scope, SharingStarted.Eagerly, emptyList())
@@ -60,6 +61,7 @@ class DownloadManager @Inject constructor(
             settingsRepository.settings.collect { settings ->
                 parallelism = settings.downloadParallelism
                 wifiOnly = settings.wifiOnly
+                destination = settings.downloadDestination
                 pump()
             }
         }
@@ -204,7 +206,7 @@ class DownloadManager @Inject constructor(
                 } else {
                     engine.download(entity.url, option, entity.subtitles, entity.id, onProgress)
                 }
-                val uri = MediaStorePublisher.publish(context, file, option.kind)
+                val uri = publishToDestination(file, option.kind)
                 dao.finish(
                     entity.id,
                     DownloadStatus.DONE.name,
@@ -231,6 +233,16 @@ class DownloadManager @Inject constructor(
                 pump()
             }
         }
+    }
+
+    private fun publishToDestination(file: File, kind: MediaKind): Uri? {
+        if (destination.isNotBlank()) {
+            val safUri = runCatching {
+                SafPublisher.publish(context, file, kind, Uri.parse(destination))
+            }.getOrNull()
+            if (safUri != null) return safUri
+        }
+        return MediaStorePublisher.publish(context, file, kind)
     }
 
     private fun syncService() {

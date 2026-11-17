@@ -3,6 +3,7 @@ package com.raisoft.grabi.ui.screens.settings
 import android.content.Context
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import com.raisoft.grabi.R
 import com.raisoft.grabi.data.browser.AdblockEngine
 import com.raisoft.grabi.data.crash.CrashHandler
 import com.raisoft.grabi.data.download.YtDlpEngine
@@ -36,6 +37,12 @@ class SettingsViewModel @Inject constructor(
     private val _engineVersion = MutableStateFlow<String?>(null)
     val engineVersion: StateFlow<String?> = _engineVersion.asStateFlow()
 
+    private val _engineUpdating = MutableStateFlow(false)
+    val engineUpdating: StateFlow<Boolean> = _engineUpdating.asStateFlow()
+
+    private val _engineMessage = MutableStateFlow<String?>(null)
+    val engineMessage: StateFlow<String?> = _engineMessage.asStateFlow()
+
     private val _adblockUpdating = MutableStateFlow(false)
     val adblockUpdating: StateFlow<Boolean> = _adblockUpdating.asStateFlow()
 
@@ -49,6 +56,28 @@ class SettingsViewModel @Inject constructor(
 
     fun refreshEngineVersion() {
         _engineVersion.value = engine.binaryVersion()
+    }
+
+    fun updateEngine() {
+        if (_engineUpdating.value) return
+        viewModelScope.launch {
+            _engineUpdating.value = true
+            val result = runCatching { engine.updateEngine() }
+            _engineVersion.value = result.getOrNull() ?: engine.binaryVersion()
+            _engineMessage.value = result.fold(
+                onSuccess = { context.getString(R.string.settings_engine_updated, it) },
+                onFailure = { context.getString(R.string.settings_engine_update_failed) },
+            )
+            _engineUpdating.value = false
+        }
+    }
+
+    fun consumeEngineMessage() {
+        _engineMessage.value = null
+    }
+
+    fun setDownloadDestination(uri: String) {
+        viewModelScope.launch { settingsRepository.setDownloadDestination(uri) }
     }
 
     fun refreshLastCrash() {

@@ -3,8 +3,12 @@ package com.raisoft.grabi.ui.screens.settings
 import android.content.Intent
 import android.net.Uri
 import android.os.Build
+import android.provider.DocumentsContract
 import android.text.format.DateFormat
+import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
@@ -14,11 +18,14 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
+import androidx.compose.material3.Button
 import androidx.compose.material3.ElevatedCard
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.SegmentedButton
 import androidx.compose.material3.SegmentedButtonDefaults
 import androidx.compose.material3.SingleChoiceSegmentedButtonRow
+import androidx.compose.material3.SnackbarHost
+import androidx.compose.material3.SnackbarHostState
 import androidx.compose.material3.Switch
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
@@ -43,6 +50,8 @@ import java.util.Date
 fun SettingsScreen(onOpenVpn: () -> Unit = {}, viewModel: SettingsViewModel = hiltViewModel()) {
     val settings by viewModel.settings.collectAsStateWithLifecycle()
     val engineVersion by viewModel.engineVersion.collectAsStateWithLifecycle()
+    val engineUpdating by viewModel.engineUpdating.collectAsStateWithLifecycle()
+    val engineMessage by viewModel.engineMessage.collectAsStateWithLifecycle()
     val adblockUpdating by viewModel.adblockUpdating.collectAsStateWithLifecycle()
     val lastCrash by viewModel.lastCrash.collectAsStateWithLifecycle()
     LaunchedEffect(Unit) {
@@ -50,297 +59,395 @@ fun SettingsScreen(onOpenVpn: () -> Unit = {}, viewModel: SettingsViewModel = hi
         viewModel.refreshLastCrash()
     }
     val context = LocalContext.current
+    val snackbarHostState = remember { SnackbarHostState() }
+    LaunchedEffect(engineMessage) {
+        val message = engineMessage ?: return@LaunchedEffect
+        snackbarHostState.showSnackbar(message)
+        viewModel.consumeEngineMessage()
+    }
+    val destinationLauncher = rememberLauncherForActivityResult(
+        ActivityResultContracts.OpenDocumentTree(),
+    ) { uri ->
+        if (uri != null) {
+            runCatching {
+                context.contentResolver.takePersistableUriPermission(
+                    uri,
+                    Intent.FLAG_GRANT_READ_URI_PERMISSION or Intent.FLAG_GRANT_WRITE_URI_PERMISSION,
+                )
+            }
+            viewModel.setDownloadDestination(uri.toString())
+        }
+    }
+    val destinationLabel = remember(settings.downloadDestination) {
+        if (settings.downloadDestination.isBlank()) {
+            null
+        } else {
+            runCatching {
+                DocumentsContract.getTreeDocumentDisplayName(
+                    context.contentResolver,
+                    Uri.parse(settings.downloadDestination),
+                )
+            }.getOrNull()
+        }
+    }
     val versionName = remember {
         runCatching {
             context.packageManager.getPackageInfo(context.packageName, 0).versionName
         }.getOrNull() ?: "?"
     }
 
-    Column(
-        modifier = Modifier
-            .fillMaxSize()
-            .verticalScroll(rememberScrollState())
-            .padding(20.dp),
-        verticalArrangement = Arrangement.spacedBy(20.dp),
-    ) {
-        Text(
-            text = stringResource(R.string.settings_title),
-            style = MaterialTheme.typography.headlineMedium,
-        )
+    Box(Modifier.fillMaxSize()) {
+        Column(
+            modifier = Modifier
+                .fillMaxSize()
+                .verticalScroll(rememberScrollState())
+                .padding(20.dp),
+            verticalArrangement = Arrangement.spacedBy(20.dp),
+        ) {
+            Text(
+                text = stringResource(R.string.settings_title),
+                style = MaterialTheme.typography.headlineMedium,
+            )
 
-        ElevatedCard(Modifier.fillMaxWidth()) {
-            Column(
-                modifier = Modifier.padding(16.dp),
-                verticalArrangement = Arrangement.spacedBy(12.dp),
-            ) {
-                Text(
-                    text = stringResource(R.string.settings_appearance),
-                    style = MaterialTheme.typography.titleMedium,
-                )
-                SingleChoiceSegmentedButtonRow(Modifier.fillMaxWidth()) {
-                    ThemeMode.entries.forEachIndexed { index, mode ->
-                        SegmentedButton(
-                            selected = settings.themeMode == mode,
-                            onClick = { viewModel.setThemeMode(mode) },
-                            shape = SegmentedButtonDefaults.itemShape(
-                                index = index,
-                                count = ThemeMode.entries.size,
-                            ),
-                        ) {
-                            Text(stringResource(mode.labelRes()))
-                        }
-                    }
-                }
-                Row(verticalAlignment = Alignment.CenterVertically) {
-                    Column(Modifier.weight(1f)) {
-                        Text(
-                            text = stringResource(R.string.settings_dynamic_color),
-                            style = MaterialTheme.typography.bodyLarge,
-                        )
-                        Text(
-                            text = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
-                                stringResource(R.string.settings_dynamic_color_summary)
-                            } else {
-                                stringResource(R.string.settings_dynamic_color_unavailable)
-                            },
-                            style = MaterialTheme.typography.bodySmall,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant,
-                        )
-                    }
-                    Switch(
-                        checked = settings.dynamicColor,
-                        onCheckedChange = viewModel::setDynamicColor,
-                        enabled = Build.VERSION.SDK_INT >= Build.VERSION_CODES.S,
-                    )
-                }
-            }
-        }
-
-        ElevatedCard(Modifier.fillMaxWidth()) {
-            Column(
-                modifier = Modifier.padding(16.dp),
-                verticalArrangement = Arrangement.spacedBy(12.dp),
-            ) {
-                Text(
-                    text = stringResource(R.string.settings_downloads),
-                    style = MaterialTheme.typography.titleMedium,
-                )
-                Text(
-                    text = stringResource(R.string.settings_parallelism),
-                    style = MaterialTheme.typography.bodyLarge,
-                )
-                SingleChoiceSegmentedButtonRow(Modifier.fillMaxWidth()) {
-                    listOf(1, 2, 3).forEachIndexed { index, count ->
-                        SegmentedButton(
-                            selected = settings.downloadParallelism == count,
-                            onClick = { viewModel.setDownloadParallelism(count) },
-                            shape = SegmentedButtonDefaults.itemShape(index = index, count = 3),
-                        ) {
-                            Text("$count")
-                        }
-                    }
-                }
-                Row(verticalAlignment = Alignment.CenterVertically) {
-                    Column(Modifier.weight(1f)) {
-                        Text(
-                            text = stringResource(R.string.settings_wifi_only),
-                            style = MaterialTheme.typography.bodyLarge,
-                        )
-                        Text(
-                            text = stringResource(R.string.settings_wifi_only_summary),
-                            style = MaterialTheme.typography.bodySmall,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant,
-                        )
-                    }
-                    Switch(
-                        checked = settings.wifiOnly,
-                        onCheckedChange = viewModel::setWifiOnly,
-                    )
-                }
-            }
-        }
-
-        ElevatedCard(Modifier.fillMaxWidth()) {
-            Column(
-                modifier = Modifier.padding(16.dp),
-                verticalArrangement = Arrangement.spacedBy(12.dp),
-            ) {
-                Text(
-                    text = stringResource(R.string.settings_browser),
-                    style = MaterialTheme.typography.titleMedium,
-                )
-                Row(verticalAlignment = Alignment.CenterVertically) {
-                    Column(Modifier.weight(1f)) {
-                        Text(
-                            text = stringResource(R.string.settings_adblock),
-                            style = MaterialTheme.typography.bodyLarge,
-                        )
-                        Text(
-                            text = stringResource(R.string.settings_adblock_summary),
-                            style = MaterialTheme.typography.bodySmall,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant,
-                        )
-                    }
-                    Switch(
-                        checked = settings.adblockEnabled,
-                        onCheckedChange = viewModel::setAdblockEnabled,
-                    )
-                }
-                Text(
-                    text = stringResource(
-                        R.string.settings_adblock_updated,
-                        adblockAgeLabel(settings.adblockLastUpdated),
-                    ),
-                    style = MaterialTheme.typography.bodySmall,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
-                )
-                Text(
-                    text = stringResource(
-                        R.string.settings_adblock_allowlist,
-                        settings.adblockAllowlist.size,
-                    ),
-                    style = MaterialTheme.typography.bodySmall,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
-                )
-                TextButton(
-                    onClick = viewModel::updateAdblock,
-                    enabled = !adblockUpdating,
+            ElevatedCard(Modifier.fillMaxWidth()) {
+                Column(
+                    modifier = Modifier.padding(16.dp),
+                    verticalArrangement = Arrangement.spacedBy(12.dp),
                 ) {
                     Text(
-                        stringResource(
-                            if (adblockUpdating) {
-                                R.string.settings_adblock_updating
-                            } else {
-                                R.string.settings_adblock_update
-                            },
-                        ),
+                        text = stringResource(R.string.settings_appearance),
+                        style = MaterialTheme.typography.titleMedium,
                     )
-                }
-            }
-        }
-
-        ElevatedCard(Modifier.fillMaxWidth()) {
-            Column(
-                modifier = Modifier.padding(16.dp),
-                verticalArrangement = Arrangement.spacedBy(8.dp),
-            ) {
-                Text(
-                    text = stringResource(R.string.settings_vpn),
-                    style = MaterialTheme.typography.titleMedium,
-                )
-                Text(
-                    text = stringResource(R.string.settings_vpn_summary),
-                    style = MaterialTheme.typography.bodySmall,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
-                )
-                TextButton(onClick = onOpenVpn) {
-                    Text(stringResource(R.string.settings_vpn_open))
-                }
-            }
-        }
-
-        ElevatedCard(Modifier.fillMaxWidth()) {
-            Column(
-                modifier = Modifier.padding(16.dp),
-                verticalArrangement = Arrangement.spacedBy(8.dp),
-            ) {
-                Text(
-                    text = stringResource(R.string.settings_about),
-                    style = MaterialTheme.typography.titleMedium,
-                )
-                Text(
-                    text = stringResource(R.string.settings_version, versionName),
-                    style = MaterialTheme.typography.bodyMedium,
-                )
-                Text(
-                    text = stringResource(
-                        R.string.settings_engine,
-                        engineVersion ?: stringResource(R.string.settings_engine_bundled),
-                    ),
-                    style = MaterialTheme.typography.bodyMedium,
-                )
-                Text(
-                    text = stringResource(R.string.settings_license),
-                    style = MaterialTheme.typography.bodyMedium,
-                )
-                lastCrash?.let { timestamp ->
-                    Text(
-                        text = stringResource(
-                            R.string.settings_last_crash,
-                            DateFormat.getDateFormat(context).format(Date(timestamp)),
-                        ),
-                        style = MaterialTheme.typography.bodyMedium,
-                    )
-                    Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                        TextButton(
-                            onClick = {
-                                runCatching {
-                                    val file = File(context.filesDir, "crashes/crash-last.txt")
-                                    val uri = FileProvider.getUriForFile(
-                                        context,
-                                        "${context.packageName}.fileprovider",
-                                        file,
-                                    )
-                                    context.startActivity(
-                                        Intent.createChooser(
-                                            Intent(Intent.ACTION_SEND)
-                                                .setType("text/plain")
-                                                .putExtra(Intent.EXTRA_STREAM, uri)
-                                                .addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION),
-                                            context.getString(R.string.settings_crash_share),
-                                        ),
-                                    )
-                                }
-                            },
-                        ) {
-                            Text(stringResource(R.string.settings_crash_share))
-                        }
-                        TextButton(onClick = viewModel::clearCrash) {
-                            Text(stringResource(R.string.settings_crash_clear))
+                    SingleChoiceSegmentedButtonRow(Modifier.fillMaxWidth()) {
+                        ThemeMode.entries.forEachIndexed { index, mode ->
+                            SegmentedButton(
+                                selected = settings.themeMode == mode,
+                                onClick = { viewModel.setThemeMode(mode) },
+                                shape = SegmentedButtonDefaults.itemShape(
+                                    index = index,
+                                    count = ThemeMode.entries.size,
+                                ),
+                            ) {
+                                Text(stringResource(mode.labelRes()))
+                            }
                         }
                     }
-                }
-                TextButton(
-                    onClick = {
-                        runCatching {
-                            context.startActivity(
-                                Intent(Intent.ACTION_VIEW, Uri.parse("https://github.com/raicore-official/grabi")),
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                        Column(Modifier.weight(1f)) {
+                            Text(
+                                text = stringResource(R.string.settings_dynamic_color),
+                                style = MaterialTheme.typography.bodyLarge,
+                            )
+                            Text(
+                                text = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
+                                    stringResource(R.string.settings_dynamic_color_summary)
+                                } else {
+                                    stringResource(R.string.settings_dynamic_color_unavailable)
+                                },
+                                style = MaterialTheme.typography.bodySmall,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant,
                             )
                         }
-                    },
-                ) {
-                    Text(stringResource(R.string.settings_source))
+                        Switch(
+                            checked = settings.dynamicColor,
+                            onCheckedChange = viewModel::setDynamicColor,
+                            enabled = Build.VERSION.SDK_INT >= Build.VERSION_CODES.S,
+                        )
+                    }
                 }
             }
-        }
 
-        ElevatedCard(Modifier.fillMaxWidth()) {
-            Column(
-                modifier = Modifier.padding(16.dp),
-                verticalArrangement = Arrangement.spacedBy(6.dp),
-            ) {
-                Text(
-                    text = stringResource(R.string.settings_roadmap),
-                    style = MaterialTheme.typography.titleMedium,
-                )
-                listOf(
-                    R.string.roadmap_phase_1,
-                    R.string.roadmap_phase_2,
-                    R.string.roadmap_phase_3,
-                    R.string.roadmap_phase_4,
-                    R.string.roadmap_phase_5,
-                    R.string.roadmap_phase_6,
-                    R.string.roadmap_phase_7,
-                ).forEach { phase ->
+            ElevatedCard(Modifier.fillMaxWidth()) {
+                Column(
+                    modifier = Modifier.padding(16.dp),
+                    verticalArrangement = Arrangement.spacedBy(12.dp),
+                ) {
                     Text(
-                        text = stringResource(phase),
-                        style = MaterialTheme.typography.bodyMedium,
+                        text = stringResource(R.string.settings_downloads),
+                        style = MaterialTheme.typography.titleMedium,
+                    )
+                    Text(
+                        text = stringResource(R.string.settings_parallelism),
+                        style = MaterialTheme.typography.bodyLarge,
+                    )
+                    SingleChoiceSegmentedButtonRow(Modifier.fillMaxWidth()) {
+                        listOf(1, 2, 3).forEachIndexed { index, count ->
+                            SegmentedButton(
+                                selected = settings.downloadParallelism == count,
+                                onClick = { viewModel.setDownloadParallelism(count) },
+                                shape = SegmentedButtonDefaults.itemShape(index = index, count = 3),
+                            ) {
+                                Text("$count")
+                            }
+                        }
+                    }
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                        Column(Modifier.weight(1f)) {
+                            Text(
+                                text = stringResource(R.string.settings_wifi_only),
+                                style = MaterialTheme.typography.bodyLarge,
+                            )
+                            Text(
+                                text = stringResource(R.string.settings_wifi_only_summary),
+                                style = MaterialTheme.typography.bodySmall,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                            )
+                        }
+                        Switch(
+                            checked = settings.wifiOnly,
+                            onCheckedChange = viewModel::setWifiOnly,
+                        )
+                    }
+                    Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
+                        Text(
+                            text = stringResource(R.string.settings_destination),
+                            style = MaterialTheme.typography.bodyLarge,
+                        )
+                        Text(
+                            text = destinationLabel
+                                ?: stringResource(R.string.settings_destination_default),
+                            style = MaterialTheme.typography.bodySmall,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        )
+                        Text(
+                            text = stringResource(R.string.settings_destination_hint),
+                            style = MaterialTheme.typography.bodySmall,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        )
+                        Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                            TextButton(onClick = { destinationLauncher.launch(null) }) {
+                                Text(stringResource(R.string.settings_destination_choose))
+                            }
+                            if (settings.downloadDestination.isNotBlank()) {
+                                TextButton(onClick = { viewModel.setDownloadDestination("") }) {
+                                    Text(stringResource(R.string.settings_destination_reset))
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+
+            ElevatedCard(Modifier.fillMaxWidth()) {
+                Column(
+                    modifier = Modifier.padding(16.dp),
+                    verticalArrangement = Arrangement.spacedBy(12.dp),
+                ) {
+                    Text(
+                        text = stringResource(R.string.settings_browser),
+                        style = MaterialTheme.typography.titleMedium,
+                    )
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                        Column(Modifier.weight(1f)) {
+                            Text(
+                                text = stringResource(R.string.settings_adblock),
+                                style = MaterialTheme.typography.bodyLarge,
+                            )
+                            Text(
+                                text = stringResource(R.string.settings_adblock_summary),
+                                style = MaterialTheme.typography.bodySmall,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                            )
+                        }
+                        Switch(
+                            checked = settings.adblockEnabled,
+                            onCheckedChange = viewModel::setAdblockEnabled,
+                        )
+                    }
+                    Text(
+                        text = stringResource(
+                            R.string.settings_adblock_updated,
+                            adblockAgeLabel(settings.adblockLastUpdated),
+                        ),
+                        style = MaterialTheme.typography.bodySmall,
                         color = MaterialTheme.colorScheme.onSurfaceVariant,
                     )
+                    Text(
+                        text = stringResource(
+                            R.string.settings_adblock_allowlist,
+                            settings.adblockAllowlist.size,
+                        ),
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    )
+                    TextButton(
+                        onClick = viewModel::updateAdblock,
+                        enabled = !adblockUpdating,
+                    ) {
+                        Text(
+                            stringResource(
+                                if (adblockUpdating) {
+                                    R.string.settings_adblock_updating
+                                } else {
+                                    R.string.settings_adblock_update
+                                },
+                            ),
+                        )
+                    }
                 }
             }
+
+            ElevatedCard(Modifier.fillMaxWidth()) {
+                Column(
+                    modifier = Modifier.padding(16.dp),
+                    verticalArrangement = Arrangement.spacedBy(8.dp),
+                ) {
+                    Text(
+                        text = stringResource(R.string.settings_vpn),
+                        style = MaterialTheme.typography.titleMedium,
+                    )
+                    Text(
+                        text = stringResource(R.string.settings_vpn_summary),
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    )
+                    TextButton(onClick = onOpenVpn) {
+                        Text(stringResource(R.string.settings_vpn_open))
+                    }
+                }
+            }
+
+            ElevatedCard(Modifier.fillMaxWidth()) {
+                Column(
+                    modifier = Modifier.padding(16.dp),
+                    verticalArrangement = Arrangement.spacedBy(8.dp),
+                ) {
+                    Text(
+                        text = stringResource(R.string.settings_engine_title),
+                        style = MaterialTheme.typography.titleMedium,
+                    )
+                    Text(
+                        text = stringResource(
+                            R.string.settings_engine,
+                            engineVersion ?: stringResource(R.string.settings_engine_bundled),
+                        ),
+                        style = MaterialTheme.typography.bodyMedium,
+                    )
+                    Text(
+                        text = stringResource(R.string.settings_engine_summary),
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    )
+                    Button(
+                        onClick = viewModel::updateEngine,
+                        enabled = !engineUpdating,
+                    ) {
+                        Text(
+                            stringResource(
+                                if (engineUpdating) {
+                                    R.string.settings_engine_updating
+                                } else {
+                                    R.string.settings_engine_update
+                                },
+                            ),
+                        )
+                    }
+                }
+            }
+
+            ElevatedCard(Modifier.fillMaxWidth()) {
+                Column(
+                    modifier = Modifier.padding(16.dp),
+                    verticalArrangement = Arrangement.spacedBy(8.dp),
+                ) {
+                    Text(
+                        text = stringResource(R.string.settings_about),
+                        style = MaterialTheme.typography.titleMedium,
+                    )
+                    Text(
+                        text = stringResource(R.string.settings_version, versionName),
+                        style = MaterialTheme.typography.bodyMedium,
+                    )
+                    Text(
+                        text = stringResource(R.string.settings_license),
+                        style = MaterialTheme.typography.bodyMedium,
+                    )
+                    lastCrash?.let { timestamp ->
+                        Text(
+                            text = stringResource(
+                                R.string.settings_last_crash,
+                                DateFormat.getDateFormat(context).format(Date(timestamp)),
+                            ),
+                            style = MaterialTheme.typography.bodyMedium,
+                        )
+                        Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                            TextButton(
+                                onClick = {
+                                    runCatching {
+                                        val file = File(context.filesDir, "crashes/crash-last.txt")
+                                        val uri = FileProvider.getUriForFile(
+                                            context,
+                                            "${context.packageName}.fileprovider",
+                                            file,
+                                        )
+                                        context.startActivity(
+                                            Intent.createChooser(
+                                                Intent(Intent.ACTION_SEND)
+                                                    .setType("text/plain")
+                                                    .putExtra(Intent.EXTRA_STREAM, uri)
+                                                    .addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION),
+                                                context.getString(R.string.settings_crash_share),
+                                            ),
+                                        )
+                                    }
+                                },
+                            ) {
+                                Text(stringResource(R.string.settings_crash_share))
+                            }
+                            TextButton(onClick = viewModel::clearCrash) {
+                                Text(stringResource(R.string.settings_crash_clear))
+                            }
+                        }
+                    }
+                    TextButton(
+                        onClick = {
+                            runCatching {
+                                context.startActivity(
+                                    Intent(Intent.ACTION_VIEW, Uri.parse("https://github.com/raicore-official/grabi")),
+                                )
+                            }
+                        },
+                    ) {
+                        Text(stringResource(R.string.settings_source))
+                    }
+                }
+            }
+
+            ElevatedCard(Modifier.fillMaxWidth()) {
+                Column(
+                    modifier = Modifier.padding(16.dp),
+                    verticalArrangement = Arrangement.spacedBy(6.dp),
+                ) {
+                    Text(
+                        text = stringResource(R.string.settings_roadmap),
+                        style = MaterialTheme.typography.titleMedium,
+                    )
+                    listOf(
+                        R.string.roadmap_phase_1,
+                        R.string.roadmap_phase_2,
+                        R.string.roadmap_phase_3,
+                        R.string.roadmap_phase_4,
+                        R.string.roadmap_phase_5,
+                        R.string.roadmap_phase_6,
+                        R.string.roadmap_phase_7,
+                        R.string.roadmap_phase_8,
+                    ).forEach { phase ->
+                        Text(
+                            text = stringResource(phase),
+                            style = MaterialTheme.typography.bodyMedium,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        )
+                    }
+                }
+            }
+            Spacer(Modifier.height(110.dp))
         }
-        Spacer(Modifier.height(24.dp))
+        SnackbarHost(
+            hostState = snackbarHostState,
+            modifier = Modifier
+                .align(Alignment.BottomCenter)
+                .padding(bottom = 100.dp),
+        )
     }
 }
 

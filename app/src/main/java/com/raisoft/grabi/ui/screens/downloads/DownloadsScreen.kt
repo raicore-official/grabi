@@ -3,6 +3,7 @@ package com.raisoft.grabi.ui.screens.downloads
 import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.RowScope
 import androidx.compose.foundation.layout.Spacer
@@ -72,7 +73,10 @@ fun DownloadsScreen(
                 message = stringResource(R.string.downloads_empty),
             )
         } else {
-            LazyColumn(verticalArrangement = Arrangement.spacedBy(12.dp)) {
+            LazyColumn(
+                verticalArrangement = Arrangement.spacedBy(12.dp),
+                contentPadding = PaddingValues(bottom = 100.dp),
+            ) {
                 items(items, key = { it.id }) { entity ->
                     DownloadRow(entity, viewModel, onPlay)
                 }

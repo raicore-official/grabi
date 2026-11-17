@@ -2,11 +2,14 @@ package com.raisoft.grabi.ui.screens.home
 
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import com.raisoft.grabi.data.browser.TabManager
 import com.raisoft.grabi.data.db.DownloadEntity
 import com.raisoft.grabi.data.download.DownloadManager
 import com.raisoft.grabi.data.download.PendingLink
 import com.raisoft.grabi.data.download.YtDlpEngine
+import com.raisoft.grabi.data.stream.FeedRepository
 import com.raisoft.grabi.domain.LinkValidator
+import com.raisoft.grabi.domain.model.FeedItem
 import com.raisoft.grabi.domain.model.MediaInfo
 import dagger.hilt.android.lifecycle.HiltViewModel
 import javax.inject.Inject
@@ -24,6 +27,8 @@ class HomeViewModel @Inject constructor(
     private val engine: YtDlpEngine,
     private val manager: DownloadManager,
     private val pendingLink: PendingLink,
+    private val feedRepository: FeedRepository,
+    private val tabManager: TabManager,
 ) : ViewModel() {
 
     data class UiState(
@@ -36,6 +41,19 @@ class HomeViewModel @Inject constructor(
         val error: String? = null,
         val lastDownloadId: String? = null,
     )
+
+    data class FeedState(
+        val kiosks: List<String> = emptyList(),
+        val kioskId: String? = null,
+        val query: String? = null,
+        val items: List<FeedItem> = emptyList(),
+        val loading: Boolean = false,
+        val error: String? = null,
+    )
+
+    private val _feed = MutableStateFlow(FeedState())
+    val feed: StateFlow<FeedState> = _feed.asStateFlow()
+    private val feedCache = mutableMapOf<String, List<FeedItem>>()
 
     private val _ui = MutableStateFlow(UiState())
     val ui: StateFlow<UiState> = _ui.asStateFlow()
@@ -55,6 +73,69 @@ class HomeViewModel @Inject constructor(
                 }
             }
         }
+        viewModelScope.launch {
+            val kiosks = feedRepository.kiosks()
+            val default = feedRepository.defaultKiosk() ?: kiosks.firstOrNull()
+            _feed.update { it.copy(kiosks = kiosks, kioskId = default) }
+            default?.let { loadKiosk(it) }
+        }
+    }
+
+    fun selectKiosk(id: String) {
+        if (_feed.value.kioskId == id && _feed.value.query == null) return
+        _feed.update { it.copy(kioskId = id, query = null) }
+        loadKiosk(id)
+    }
+
+    private fun loadKiosk(id: String) {
+        feedCache[id]?.let { cached ->
+            _feed.update { it.copy(items = cached, loading = false, error = null) }
+            return
+        }
+        viewModelScope.launch {
+            _feed.update { it.copy(loading = true, error = null) }
+            runCatching { feedRepository.kioskItems(id) }
+                .onSuccess { items ->
+                    feedCache[id] = items
+                    _feed.update { it.copy(items = items, loading = false) }
+                }
+                .onFailure { e ->
+                    _feed.update { it.copy(loading = false, error = e.message?.take(200)) }
+                }
+        }
+    }
+
+    fun submit(input: String) {
+        val candidate = LinkValidator.extractUrl(input) ?: input.trim()
+        if (LinkValidator.isValidUrl(candidate)) {
+            _ui.update { it.copy(link = candidate, linkInvalid = false) }
+            fetch(candidate)
+        } else if (candidate.isNotBlank()) {
+            search(candidate)
+        } else {
+            _ui.update { it.copy(linkInvalid = true) }
+        }
+    }
+
+    fun search(query: String) {
+        viewModelScope.launch {
+            _feed.update { it.copy(query = query, loading = true, error = null) }
+            runCatching { feedRepository.search(query) }
+                .onSuccess { items -> _feed.update { it.copy(items = items, loading = false) } }
+                .onFailure { e ->
+                    _feed.update { it.copy(loading = false, error = e.message?.take(200)) }
+                }
+        }
+    }
+
+    fun clearSearch() {
+        val kiosk = _feed.value.kioskId ?: return
+        _feed.update { it.copy(query = null) }
+        loadKiosk(kiosk)
+    }
+
+    fun openSite(url: String) {
+        tabManager.openTab(url)
     }
 
     fun onLinkChange(value: String) {

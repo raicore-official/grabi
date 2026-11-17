@@ -24,6 +24,7 @@ class SettingsRepository @Inject constructor(
     private val dynamicColorKey = booleanPreferencesKey("dynamic_color")
     private val parallelismKey = intPreferencesKey("download_parallelism")
     private val wifiOnlyKey = booleanPreferencesKey("wifi_only")
+    private val destinationKey = stringPreferencesKey("download_destination")
     private val adblockEnabledKey = booleanPreferencesKey("adblock_enabled")
     private val adblockAllowlistKey = stringSetPreferencesKey("adblock_allowlist")
     private val adblockLastUpdatedKey = longPreferencesKey("adblock_last_updated")
@@ -36,6 +37,7 @@ class SettingsRepository @Inject constructor(
             dynamicColor = preferences[dynamicColorKey] ?: false,
             downloadParallelism = (preferences[parallelismKey] ?: 2).coerceIn(1, 3),
             wifiOnly = preferences[wifiOnlyKey] ?: false,
+            downloadDestination = preferences[destinationKey] ?: "",
             adblockEnabled = preferences[adblockEnabledKey] ?: true,
             adblockAllowlist = preferences[adblockAllowlistKey] ?: emptySet(),
             adblockLastUpdated = preferences[adblockLastUpdatedKey] ?: 0L,
@@ -56,6 +58,10 @@ class SettingsRepository @Inject constructor(
 
     suspend fun setWifiOnly(enabled: Boolean) {
         context.settingsDataStore.edit { it[wifiOnlyKey] = enabled }
+    }
+
+    suspend fun setDownloadDestination(uri: String) {
+        context.settingsDataStore.edit { it[destinationKey] = uri }
     }
 
     suspend fun setAdblockEnabled(enabled: Boolean) {

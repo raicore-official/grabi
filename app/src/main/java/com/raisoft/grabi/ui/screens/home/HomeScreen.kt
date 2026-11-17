@@ -1,26 +1,37 @@
 package com.raisoft.grabi.ui.screens.home
 
 import androidx.compose.foundation.Image
+import androidx.compose.foundation.background
+import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.ExperimentalLayoutApi
-import androidx.compose.foundation.layout.FlowRow
+import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.aspectRatio
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.foundation.verticalScroll
+import androidx.compose.foundation.text.KeyboardActions
+import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.rounded.Close
 import androidx.compose.material.icons.rounded.ContentPaste
+import androidx.compose.material.icons.rounded.Download
+import androidx.compose.material.icons.rounded.Search
 import androidx.compose.material3.Button
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.ElevatedCard
+import androidx.compose.material3.FilterChip
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.LinearProgressIndicator
@@ -28,12 +39,12 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.RadioButton
-import androidx.compose.material3.Scaffold
 import androidx.compose.material3.SnackbarHost
 import androidx.compose.material3.SnackbarHostState
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Switch
 import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
@@ -42,24 +53,45 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalClipboardManager
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import coil.compose.AsyncImage
 import com.raisoft.grabi.R
 import com.raisoft.grabi.data.db.DownloadEntity
+import com.raisoft.grabi.domain.CompactNumber
+import com.raisoft.grabi.domain.LinkValidator
 import com.raisoft.grabi.domain.model.DownloadStatus
+import com.raisoft.grabi.domain.model.FeedItem
 import com.raisoft.grabi.domain.model.MediaKind
 import com.raisoft.grabi.ui.formatDuration
 import com.raisoft.grabi.ui.formatSize
 
-@OptIn(ExperimentalLayoutApi::class)
+private data class QuickSite(val name: String, val url: String, val color: Long)
+
+private val QUICK_SITES = listOf(
+    QuickSite("YouTube", "https://www.youtube.com", 0xFFFF0000),
+    QuickSite("Instagram", "https://www.instagram.com", 0xFFE1306C),
+    QuickSite("Facebook", "https://www.facebook.com", 0xFF1877F2),
+    QuickSite("TikTok", "https://www.tiktok.com", 0xFF25F4EE),
+    QuickSite("Pinterest", "https://www.pinterest.com", 0xFFE60023),
+    QuickSite("X", "https://x.com", 0xFFE7E9EA),
+)
+
 @Composable
-fun HomeScreen(viewModel: HomeViewModel = hiltViewModel()) {
+fun HomeScreen(
+    onOpenPlayer: (String, String) -> Unit = { _, _ -> },
+    onOpenBrowser: () -> Unit = {},
+    viewModel: HomeViewModel = hiltViewModel(),
+) {
     val ui by viewModel.ui.collectAsStateWithLifecycle()
+    val feed by viewModel.feed.collectAsStateWithLifecycle()
     val job by viewModel.download.collectAsStateWithLifecycle()
     val clipboard = LocalClipboardManager.current
     val snackbarHostState = remember { SnackbarHostState() }
@@ -71,183 +103,194 @@ fun HomeScreen(viewModel: HomeViewModel = hiltViewModel()) {
         }
     }
 
-    Scaffold(
-        snackbarHost = { SnackbarHost(snackbarHostState) },
-        containerColor = Color.Transparent,
-    ) { innerPadding ->
-        Column(
-            modifier = Modifier
-                .fillMaxSize()
-                .padding(innerPadding)
-                .verticalScroll(rememberScrollState())
-                .padding(horizontal = 20.dp),
-            verticalArrangement = Arrangement.spacedBy(20.dp),
+    Box(Modifier.fillMaxSize()) {
+        LazyColumn(
+            modifier = Modifier.fillMaxSize(),
+            contentPadding = PaddingValues(start = 20.dp, end = 20.dp, top = 8.dp, bottom = 120.dp),
+            verticalArrangement = Arrangement.spacedBy(16.dp),
         ) {
-            Spacer(Modifier.height(8.dp))
-            Row(
-                verticalAlignment = Alignment.CenterVertically,
-                horizontalArrangement = Arrangement.spacedBy(12.dp),
-            ) {
-                Image(
-                    painter = painterResource(R.drawable.grabi_logo),
-                    contentDescription = null,
-                    modifier = Modifier
-                        .size(48.dp)
-                        .clip(RoundedCornerShape(12.dp)),
-                )
-                Column {
-                    Text(
-                        text = stringResource(R.string.app_name),
-                        style = MaterialTheme.typography.displaySmall,
-                        color = MaterialTheme.colorScheme.primary,
+            item {
+                Row(
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(12.dp),
+                ) {
+                    Image(
+                        painter = painterResource(R.drawable.grabi_logo),
+                        contentDescription = null,
+                        modifier = Modifier
+                            .size(44.dp)
+                            .clip(RoundedCornerShape(12.dp)),
                     )
-                    Text(
-                        text = stringResource(R.string.home_tagline),
-                        style = MaterialTheme.typography.bodyMedium,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant,
-                    )
+                    Column {
+                        Text(
+                            text = stringResource(R.string.app_name),
+                            style = MaterialTheme.typography.headlineSmall,
+                            color = MaterialTheme.colorScheme.primary,
+                        )
+                        Text(
+                            text = stringResource(R.string.home_tagline),
+                            style = MaterialTheme.typography.bodySmall,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        )
+                    }
                 }
             }
 
-            ElevatedCard(Modifier.fillMaxWidth()) {
-                Column(
-                    modifier = Modifier.padding(16.dp),
-                    verticalArrangement = Arrangement.spacedBy(12.dp),
-                ) {
-                    Text(
-                        text = stringResource(R.string.home_paste_title),
-                        style = MaterialTheme.typography.titleMedium,
-                    )
-                    OutlinedTextField(
-                        value = ui.link,
-                        onValueChange = viewModel::onLinkChange,
-                        modifier = Modifier.fillMaxWidth(),
-                        label = { Text(stringResource(R.string.home_link_label)) },
-                        placeholder = { Text(stringResource(R.string.home_link_placeholder)) },
-                        singleLine = true,
-                        isError = ui.linkInvalid,
-                        supportingText = if (ui.linkInvalid) {
-                            { Text(stringResource(R.string.home_link_invalid)) }
-                        } else {
-                            null
-                        },
-                        trailingIcon = {
-                            IconButton(
-                                onClick = {
-                                    clipboard.getText()?.text?.let(viewModel::onLinkChange)
-                                },
-                            ) {
-                                Icon(
-                                    imageVector = Icons.Rounded.ContentPaste,
-                                    contentDescription = stringResource(R.string.home_paste_action),
+            item {
+                ElevatedCard(Modifier.fillMaxWidth()) {
+                    Column(
+                        modifier = Modifier.padding(16.dp),
+                        verticalArrangement = Arrangement.spacedBy(12.dp),
+                    ) {
+                        OutlinedTextField(
+                            value = ui.link,
+                            onValueChange = viewModel::onLinkChange,
+                            modifier = Modifier.fillMaxWidth(),
+                            label = { Text(stringResource(R.string.home_link_label)) },
+                            placeholder = { Text(stringResource(R.string.home_search_hint)) },
+                            singleLine = true,
+                            isError = ui.linkInvalid,
+                            keyboardOptions = KeyboardOptions(imeAction = ImeAction.Search),
+                            keyboardActions = KeyboardActions(onSearch = { viewModel.submit(ui.link) }),
+                            supportingText = if (ui.linkInvalid) {
+                                { Text(stringResource(R.string.home_link_invalid)) }
+                            } else {
+                                null
+                            },
+                            leadingIcon = { Icon(Icons.Rounded.Search, null) },
+                            trailingIcon = {
+                                IconButton(
+                                    onClick = {
+                                        clipboard.getText()?.text?.let(viewModel::onLinkChange)
+                                    },
+                                ) {
+                                    Icon(
+                                        imageVector = Icons.Rounded.ContentPaste,
+                                        contentDescription = stringResource(R.string.home_paste_action),
+                                    )
+                                }
+                            },
+                        )
+                        Button(
+                            onClick = { viewModel.submit(ui.link) },
+                            modifier = Modifier.fillMaxWidth(),
+                            enabled = ui.link.isNotBlank() && !ui.fetching,
+                        ) {
+                            if (ui.fetching) {
+                                CircularProgressIndicator(
+                                    modifier = Modifier.size(18.dp),
+                                    strokeWidth = 2.dp,
+                                    color = MaterialTheme.colorScheme.onPrimary,
+                                )
+                                Spacer(Modifier.size(8.dp))
+                                Text(stringResource(R.string.home_fetching))
+                            } else {
+                                Text(
+                                    stringResource(
+                                        if (LinkValidator.isValidUrl(ui.link.trim())) {
+                                            R.string.home_fetch_button
+                                        } else {
+                                            R.string.home_search_button
+                                        },
+                                    ),
                                 )
                             }
-                        },
-                    )
-                    Button(
-                        onClick = { viewModel.fetch() },
-                        modifier = Modifier.fillMaxWidth(),
-                        enabled = ui.link.isNotBlank() && !ui.fetching,
-                    ) {
-                        if (ui.fetching) {
-                            CircularProgressIndicator(
-                                modifier = Modifier.size(18.dp),
-                                strokeWidth = 2.dp,
-                                color = MaterialTheme.colorScheme.onPrimary,
-                            )
-                            Spacer(Modifier.size(8.dp))
-                            Text(stringResource(R.string.home_fetching))
-                        } else {
-                            Text(stringResource(R.string.home_fetch_button))
                         }
+                        Text(
+                            text = stringResource(R.string.home_universal_hint),
+                            style = MaterialTheme.typography.bodySmall,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        )
                     }
                 }
             }
 
             val info = ui.info
             if (info != null) {
-                ElevatedCard(Modifier.fillMaxWidth()) {
-                    Column(
-                        modifier = Modifier.padding(16.dp),
-                        verticalArrangement = Arrangement.spacedBy(10.dp),
-                    ) {
-                        Text(
-                            text = info.title,
-                            style = MaterialTheme.typography.titleMedium,
-                            maxLines = 3,
-                            overflow = TextOverflow.Ellipsis,
-                        )
-                        val meta = listOfNotNull(
-                            info.uploader,
-                            formatDuration(info.durationSeconds).takeIf { info.durationSeconds > 0 },
-                        ).joinToString(" · ")
-                        if (meta.isNotBlank()) {
+                item {
+                    ElevatedCard(Modifier.fillMaxWidth()) {
+                        Column(
+                            modifier = Modifier.padding(16.dp),
+                            verticalArrangement = Arrangement.spacedBy(10.dp),
+                        ) {
                             Text(
-                                text = meta,
-                                style = MaterialTheme.typography.bodySmall,
-                                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                text = info.title,
+                                style = MaterialTheme.typography.titleMedium,
+                                maxLines = 3,
+                                overflow = TextOverflow.Ellipsis,
                             )
-                        }
-                        Text(
-                            text = stringResource(R.string.home_format_title),
-                            style = MaterialTheme.typography.titleSmall,
-                        )
-                        info.options.forEach { option ->
-                            val selected = ui.selectedOptionId == option.id
-                            Surface(
-                                onClick = { viewModel.selectOption(option.id) },
-                                shape = RoundedCornerShape(12.dp),
-                                color = if (selected) {
-                                    MaterialTheme.colorScheme.primaryContainer
-                                } else {
-                                    MaterialTheme.colorScheme.surfaceVariant
-                                },
-                                modifier = Modifier.fillMaxWidth(),
-                            ) {
-                                Row(
-                                    modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp),
-                                    verticalAlignment = Alignment.CenterVertically,
+                            val meta = listOfNotNull(
+                                info.uploader,
+                                formatDuration(info.durationSeconds).takeIf { info.durationSeconds > 0 },
+                            ).joinToString(" · ")
+                            if (meta.isNotBlank()) {
+                                Text(
+                                    text = meta,
+                                    style = MaterialTheme.typography.bodySmall,
+                                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                )
+                            }
+                            Text(
+                                text = stringResource(R.string.home_format_title),
+                                style = MaterialTheme.typography.titleSmall,
+                            )
+                            info.options.forEach { option ->
+                                val selected = ui.selectedOptionId == option.id
+                                Surface(
+                                    onClick = { viewModel.selectOption(option.id) },
+                                    shape = RoundedCornerShape(12.dp),
+                                    color = if (selected) {
+                                        MaterialTheme.colorScheme.primaryContainer
+                                    } else {
+                                        MaterialTheme.colorScheme.surfaceVariant
+                                    },
+                                    modifier = Modifier.fillMaxWidth(),
                                 ) {
-                                    RadioButton(
-                                        selected = selected,
-                                        onClick = { viewModel.selectOption(option.id) },
-                                    )
-                                    Column(Modifier.weight(1f)) {
-                                        Text(option.label, style = MaterialTheme.typography.bodyLarge)
-                                        val kind = stringResource(
-                                            if (option.kind == MediaKind.VIDEO) {
-                                                R.string.home_format_video
-                                            } else {
-                                                R.string.home_format_audio
-                                            },
+                                    Row(
+                                        modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp),
+                                        verticalAlignment = Alignment.CenterVertically,
+                                    ) {
+                                        RadioButton(
+                                            selected = selected,
+                                            onClick = { viewModel.selectOption(option.id) },
                                         )
-                                        val size = option.sizeBytes?.let { " · ~${formatSize(it)}" }.orEmpty()
-                                        Text(
-                                            text = kind + size,
-                                            style = MaterialTheme.typography.bodySmall,
-                                            color = MaterialTheme.colorScheme.onSurfaceVariant,
-                                        )
+                                        Column(Modifier.weight(1f)) {
+                                            Text(option.label, style = MaterialTheme.typography.bodyLarge)
+                                            val kind = stringResource(
+                                                if (option.kind == MediaKind.VIDEO) {
+                                                    R.string.home_format_video
+                                                } else {
+                                                    R.string.home_format_audio
+                                                },
+                                            )
+                                            val size = option.sizeBytes?.let { " · ~${formatSize(it)}" }.orEmpty()
+                                            Text(
+                                                text = kind + size,
+                                                style = MaterialTheme.typography.bodySmall,
+                                                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                            )
+                                        }
                                     }
                                 }
                             }
-                        }
-                        Row(verticalAlignment = Alignment.CenterVertically) {
-                            Text(
-                                text = stringResource(R.string.home_subtitles),
-                                style = MaterialTheme.typography.bodyMedium,
-                                modifier = Modifier.weight(1f),
-                            )
-                            Switch(
-                                checked = ui.subtitles,
-                                onCheckedChange = viewModel::setSubtitles,
-                            )
-                        }
-                        Button(
-                            onClick = viewModel::startDownload,
-                            modifier = Modifier.fillMaxWidth(),
-                            enabled = job?.status != DownloadStatus.RUNNING.name,
-                        ) {
-                            Text(stringResource(R.string.home_download_button))
+                            Row(verticalAlignment = Alignment.CenterVertically) {
+                                Text(
+                                    text = stringResource(R.string.home_subtitles),
+                                    style = MaterialTheme.typography.bodyMedium,
+                                    modifier = Modifier.weight(1f),
+                                )
+                                Switch(
+                                    checked = ui.subtitles,
+                                    onCheckedChange = viewModel::setSubtitles,
+                                )
+                            }
+                            Button(
+                                onClick = viewModel::startDownload,
+                                modifier = Modifier.fillMaxWidth(),
+                                enabled = job?.status != DownloadStatus.RUNNING.name,
+                            ) {
+                                Text(stringResource(R.string.home_download_button))
+                            }
                         }
                     }
                 }
@@ -255,53 +298,221 @@ fun HomeScreen(viewModel: HomeViewModel = hiltViewModel()) {
 
             val currentJob = job
             if (currentJob != null) {
-                DownloadCard(
-                    job = currentJob,
-                    onPause = viewModel::pauseDownload,
-                    onResume = viewModel::resumeDownload,
-                    onRetry = viewModel::retryDownload,
-                    onCancel = viewModel::cancelDownload,
-                    onDismiss = viewModel::dismissDownload,
-                )
+                item {
+                    DownloadCard(
+                        job = currentJob,
+                        onPause = viewModel::pauseDownload,
+                        onResume = viewModel::resumeDownload,
+                        onRetry = viewModel::retryDownload,
+                        onCancel = viewModel::cancelDownload,
+                        onDismiss = viewModel::dismissDownload,
+                    )
+                }
             }
 
-            if (info == null) {
-                Text(
-                    text = stringResource(R.string.home_supported_title),
-                    style = MaterialTheme.typography.titleMedium,
-                )
-                FlowRow(
+            item {
+                Row(
+                    modifier = Modifier.horizontalScroll(rememberScrollState()),
                     horizontalArrangement = Arrangement.spacedBy(8.dp),
-                    verticalArrangement = Arrangement.spacedBy(8.dp),
                 ) {
-                    listOf("YouTube", "Facebook", "Instagram", "TikTok", "X", "Vimeo", "SoundCloud", "+1000 more")
-                        .forEach { site ->
-                            Surface(shape = CircleShape, color = MaterialTheme.colorScheme.surfaceVariant) {
-                                Text(
-                                    text = site,
-                                    style = MaterialTheme.typography.labelLarge,
-                                    modifier = Modifier.padding(horizontal = 14.dp, vertical = 8.dp),
-                                )
-                            }
-                        }
-                }
-
-                ElevatedCard(Modifier.fillMaxWidth()) {
-                    Column(
-                        modifier = Modifier.padding(16.dp),
-                        verticalArrangement = Arrangement.spacedBy(10.dp),
-                    ) {
-                        Text(
-                            text = stringResource(R.string.home_how_title),
-                            style = MaterialTheme.typography.titleMedium,
+                    feed.query?.let { query ->
+                        FilterChip(
+                            selected = true,
+                            onClick = viewModel::clearSearch,
+                            label = { Text("“$query”") },
+                            trailingIcon = { Icon(Icons.Rounded.Close, null, Modifier.size(16.dp)) },
                         )
-                        Text(stringResource(R.string.home_step_1), style = MaterialTheme.typography.bodyMedium)
-                        Text(stringResource(R.string.home_step_2), style = MaterialTheme.typography.bodyMedium)
-                        Text(stringResource(R.string.home_step_3), style = MaterialTheme.typography.bodyMedium)
+                    }
+                    feed.kiosks.forEach { kiosk ->
+                        FilterChip(
+                            selected = feed.query == null && feed.kioskId == kiosk,
+                            onClick = { viewModel.selectKiosk(kiosk) },
+                            label = { Text(kiosk) },
+                        )
                     }
                 }
             }
-            Spacer(Modifier.height(24.dp))
+
+            item {
+                Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                    Text(
+                        text = stringResource(R.string.home_sites_title),
+                        style = MaterialTheme.typography.titleSmall,
+                    )
+                    Row(
+                        modifier = Modifier.horizontalScroll(rememberScrollState()),
+                        horizontalArrangement = Arrangement.spacedBy(12.dp),
+                    ) {
+                        QUICK_SITES.forEach { site ->
+                            Column(
+                                horizontalAlignment = Alignment.CenterHorizontally,
+                                verticalArrangement = Arrangement.spacedBy(4.dp),
+                            ) {
+                                Surface(
+                                    onClick = {
+                                        viewModel.openSite(site.url)
+                                        onOpenBrowser()
+                                    },
+                                    shape = CircleShape,
+                                    color = Color(site.color),
+                                    modifier = Modifier.size(48.dp),
+                                ) {
+                                    Box(contentAlignment = Alignment.Center) {
+                                        Text(
+                                            text = site.name.take(1),
+                                            style = MaterialTheme.typography.titleMedium,
+                                            color = if (site.name == "TikTok" || site.name == "X") {
+                                                Color(0xFF0F1115)
+                                            } else {
+                                                Color.White
+                                            },
+                                        )
+                                    }
+                                }
+                                Text(
+                                    text = site.name,
+                                    style = MaterialTheme.typography.labelSmall,
+                                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                )
+                            }
+                        }
+                    }
+                }
+            }
+
+            if (feed.loading) {
+                item { LinearProgressIndicator(Modifier.fillMaxWidth()) }
+            }
+            feed.error?.let { error ->
+                item {
+                    Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
+                        Text(
+                            text = error,
+                            style = MaterialTheme.typography.bodySmall,
+                            color = MaterialTheme.colorScheme.error,
+                        )
+                        TextButton(
+                            onClick = {
+                                feed.query?.let(viewModel::search)
+                                    ?: feed.kioskId?.let(viewModel::selectKiosk)
+                            },
+                        ) {
+                            Text(stringResource(R.string.action_retry))
+                        }
+                    }
+                }
+            }
+            if (!feed.loading && feed.items.isEmpty() && feed.error == null) {
+                item {
+                    Text(
+                        text = stringResource(R.string.home_feed_empty),
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    )
+                }
+            }
+            items(feed.items, key = { it.url }) { item ->
+                FeedCard(
+                    item = item,
+                    onOpen = { onOpenPlayer(item.url, item.title) },
+                    onDownload = { viewModel.fetch(item.url) },
+                )
+            }
+        }
+        SnackbarHost(snackbarHostState, Modifier.align(Alignment.BottomCenter))
+    }
+}
+
+@Composable
+private fun FeedCard(item: FeedItem, onOpen: () -> Unit, onDownload: () -> Unit) {
+    ElevatedCard(onClick = onOpen, modifier = Modifier.fillMaxWidth()) {
+        Column {
+            Box(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .aspectRatio(16f / 9f)
+                    .background(MaterialTheme.colorScheme.surfaceVariant),
+            ) {
+                if (item.thumbnailUrl != null) {
+                    AsyncImage(
+                        model = item.thumbnailUrl,
+                        contentDescription = null,
+                        contentScale = ContentScale.Crop,
+                        modifier = Modifier.fillMaxSize(),
+                    )
+                }
+                Row(
+                    modifier = Modifier
+                        .align(Alignment.BottomStart)
+                        .fillMaxWidth()
+                        .padding(8.dp),
+                    verticalAlignment = Alignment.CenterVertically,
+                ) {
+                    if (item.viewCount >= 0) {
+                        Surface(color = Color(0xB3000000), shape = RoundedCornerShape(6.dp)) {
+                            Text(
+                                text = stringResource(
+                                    R.string.home_views,
+                                    CompactNumber.format(item.viewCount),
+                                ),
+                                style = MaterialTheme.typography.labelSmall,
+                                color = Color.White,
+                                modifier = Modifier.padding(horizontal = 6.dp, vertical = 2.dp),
+                            )
+                        }
+                    }
+                    Spacer(Modifier.weight(1f))
+                    if (item.durationSeconds > 0) {
+                        Surface(color = Color(0xB3000000), shape = RoundedCornerShape(6.dp)) {
+                            Text(
+                                text = formatDuration(item.durationSeconds.toInt()),
+                                style = MaterialTheme.typography.labelSmall,
+                                color = Color.White,
+                                modifier = Modifier.padding(horizontal = 6.dp, vertical = 2.dp),
+                            )
+                        }
+                    }
+                }
+            }
+            Column(
+                modifier = Modifier.padding(12.dp),
+                verticalArrangement = Arrangement.spacedBy(8.dp),
+            ) {
+                Text(
+                    text = item.title,
+                    style = MaterialTheme.typography.titleSmall,
+                    maxLines = 2,
+                    overflow = TextOverflow.Ellipsis,
+                )
+                Row(
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(8.dp),
+                ) {
+                    AsyncImage(
+                        model = item.uploaderAvatarUrl,
+                        contentDescription = null,
+                        modifier = Modifier
+                            .size(24.dp)
+                            .clip(CircleShape)
+                            .background(MaterialTheme.colorScheme.surfaceVariant),
+                    )
+                    Text(
+                        text = item.uploader.orEmpty(),
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        maxLines = 1,
+                        overflow = TextOverflow.Ellipsis,
+                        modifier = Modifier.weight(1f),
+                    )
+                    IconButton(onClick = onDownload) {
+                        Icon(
+                            imageVector = Icons.Rounded.Download,
+                            contentDescription = stringResource(R.string.home_download_button),
+                            tint = MaterialTheme.colorScheme.primary,
+                        )
+                    }
+                }
+            }
         }
     }
 }
