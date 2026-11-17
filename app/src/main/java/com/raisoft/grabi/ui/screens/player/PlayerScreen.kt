@@ -102,6 +102,7 @@ import com.raisoft.grabi.domain.model.DownloadStatus
 import com.raisoft.grabi.domain.model.FeedItem
 import com.raisoft.grabi.domain.model.StreamInfo
 import com.raisoft.grabi.ui.components.EmptyState
+import com.raisoft.grabi.ui.components.GlassSurface
 import com.raisoft.grabi.ui.formatDuration
 import com.raisoft.grabi.ui.theme.liveBadge
 import com.raisoft.grabi.ui.theme.liveText
@@ -180,25 +181,26 @@ fun PlayerScreen(
 
     Column(Modifier.fillMaxSize().background(scheme.background)) {
         if (!fullscreen) {
-            Row(
+            GlassSurface(
                 modifier = Modifier
                     .fillMaxWidth()
                     .padding(horizontal = 8.dp, vertical = 4.dp),
-                verticalAlignment = Alignment.CenterVertically,
             ) {
-                IconButton(onClick = onBack) {
-                    Icon(
-                        imageVector = Icons.AutoMirrored.Rounded.ArrowBack,
-                        contentDescription = stringResource(R.string.player_back),
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    IconButton(onClick = onBack) {
+                        Icon(
+                            imageVector = Icons.AutoMirrored.Rounded.ArrowBack,
+                            contentDescription = stringResource(R.string.player_back),
+                        )
+                    }
+                    Text(
+                        text = state.info?.title ?: stringResource(R.string.player_title),
+                        style = MaterialTheme.typography.titleMedium,
+                        maxLines = 1,
+                        overflow = TextOverflow.Ellipsis,
+                        modifier = Modifier.weight(1f),
                     )
                 }
-                Text(
-                    text = state.info?.title ?: stringResource(R.string.player_title),
-                    style = MaterialTheme.typography.titleMedium,
-                    maxLines = 1,
-                    overflow = TextOverflow.Ellipsis,
-                    modifier = Modifier.weight(1f),
-                )
             }
         }
         when {
