@@ -10,7 +10,7 @@
 Open-source, VidMate-style video downloader and player for Android. No ads, no tracking, no API keys.
 Original developer: **Raisul Islam** ([Raisulxislam](https://github.com/Raisulxislam)) · Raisoft Studio.
 
-> **Status: v0.2.0 released.** All seven roadmap phases are done: shell, yt-dlp engine, download manager, Media3 player, built-in browser (tabs, incognito, site grid, video/audio/image detection, EasyList/EasyPrivacy/uBlock adblock with per-site allowlist), WireGuard VPN (config import, country-organized community config finder, handshake verification, kill switch, split tunneling) and release polish (crash capture, F-Droid metadata, GitHub Releases). v0.2.0 ships Phase 8: the native YouTube feed, the dedicated Grab tab, glassy icon-only navigation, SAF download destinations, manual engine updates and screen-off playback fixes. Backlog items are marked below.
+> **Status: v0.3.0 released.** All seven roadmap phases are done: shell, yt-dlp engine, download manager, Media3 player, built-in browser (tabs, incognito, site grid, video/audio/image detection, EasyList/EasyPrivacy/uBlock adblock with per-site allowlist), WireGuard VPN (config import, country-organized community config finder, handshake verification, kill switch, split tunneling) and release polish (crash capture, F-Droid metadata, GitHub Releases). v0.3.0 ships Phase 9 so far: the rebuilt native player (retry chain on expired links, custom controls, fullscreen, captions, related videos) and the single-source theme system (System/Light/Dark, full Material 3 schemes, darkened WebView, CI color guard and both-mode screenshot tests). Backlog items are marked below.
 
 ## Screenshots
 
@@ -158,11 +158,35 @@ F-Droid builds from source and signs with its own key, so no keystore secrets ar
 
 - **Home is a native feed, not a paste box.** `FeedRepository` talks to NewPipeExtractor's YouTube kiosks (Trending, Music, Gaming, …) and search — no API key, no WebView. Results render as thumbnail cards with view counts, duration, uploader avatar and a one-tap download action; kiosk results are cached per session. The header is just a YouTube search field with the Grabi logo in the top-right corner.
 - **Grab tab owns paste-to-download.** The universal link field (clipboard paste button, `ACTION_SEND` shares, browser “Download this page” offers and feed download taps all route here), the format picker (144p–4K merged MP4 + MP3/M4A/Opus, subtitles switch) and the live download card (percent/speed/ETA, pause/resume/retry/cancel) live on their own destination, so Home stays a clean browsing surface.
-- **Glassy icon-only navigation.** Floating pill bar with a translucent charcoal gradient, hairline top light, per-tab ember glow and custom stroke icons matched to the logo; six destinations, state-preserving switches.
+- **Glassy icon-only navigation.** Floating pill bar with a translucent warm-charcoal gradient, hairline top light, per-tab terracotta glow and custom stroke icons matched to the logo; six destinations, state-preserving switches.
 - **Playback fixes.** ExoPlayer is built with `C.WAKE_MODE_NETWORK` so screen-off and audio-only background playback keep their wake lock; audio becoming noisy pauses playback.
 - **Engine fixes & updates.** yt-dlp init now also extracts FFmpeg and aria2c (missing before, which broke merges/direct links); downloads pass `--no-simulate --progress` so `--print`-style info flags no longer suppress progress. Settings → Download engine shows the binary version and a manual **Update yt-dlp** button (STABLE channel) on top of the background auto-update.
 - **Download destination.** Settings → Downloads opens the system folder picker (SAF); finished files are copied into the chosen tree via `DocumentsContract`, with MediaStore as the default/fallback. The folder's display name is resolved from the tree document.
 - **Detection sheet sections.** The browser's floating download sheet splits detections into *Video & audio* and *Images* chips with counts, plus the page-level video offer for MSE players like YouTube.
+
+## Theme system (Phase 9)
+
+- **Single source of truth.** `ThemeMode` (System/Light/Dark) and the dynamic-color toggle live in DataStore, are read once before the first frame in `MainActivity`, and dark is resolved only at the root (`ThemeMode.resolveDark`). `GrabiTheme` crossfades every scheme role over 200 ms; the Settings selector applies instantly.
+- **Two complete Material 3 schemes** (all 36 roles, including the surface-container ladder, inverse and scrim roles) built on the brand: terracotta `#D97757`, cream `#F5F0E8`, charcoal `#1F1D1B`. Dynamic color is off by default.
+- **No hardcoded colors outside `ui/theme`.** A CI grep guard fails the build and lists violations (Kotlin `Color.*`/hex literals and drawable hex). Over-media roles (`onVideo`, `videoScrim`, `liveBadge`, `onLiveBadge`, `liveText`) are `ColorScheme` extensions defined only in the theme package.
+- **The usual breakage points are handled:** day/night `windowBackground` and splash color, `AppCompatDelegate` night-mode sync for XML/dialogs/WebView, edge-to-edge with status/nav icon contrast driven by the app's dark value, WebView algorithmic darkening plus themed background applied to every tab, themed vector icons, Canvas colors captured inside composables.
+- **Screenshot gate.** Paparazzi renders the scheme board and core components in both modes; goldens are committed under `app/src/test/snapshots` and CI runs `verifyPaparazziDebug`, so visual drift fails the build. After an intentional UI change re-record with `./gradlew :app:recordPaparazziDebug` and commit the new goldens.
+- **Previews.** Light and dark `@Preview`s for the scheme, shared components and player parts (`ui/theme/ThemePreviews.kt`, `PlayerScreen.kt`).
+
+### Manual theme checklist (device)
+
+Run each item in System, Light and Dark (Settings → Appearance):
+
+1. Cold start shows no white/black flash; the splash matches the active mode.
+2. Status and navigation bar icons are readable: dark icons on cream, light icons on charcoal.
+3. Home, Grab, Browser, Downloads, Library, Settings, VPN and Player all render in one mode — backgrounds, cards, chips, sheets and dialogs included, no mixed patches.
+4. Browser in Dark: a light-only site (e.g. example.com) is algorithmically darkened and the WebView background matches the app while loading; switching to Light restores the site's native colors.
+5. Player overlay, seekbar and time labels stay readable over video in both modes; the LIVE badge stays red in both.
+6. Toggling the theme mid-playback keeps audio/video running (playback lives in the service) and preserves position; the UI crossfades instead of flashing.
+7. With the app set to System, toggling the OS dark mode follows without losing tabs, scroll position or typed text.
+8. Incognito tabs, the detection sheet and the history sheet render in the active mode.
+9. Download and media-session notification icons are legible on the system shade in both modes.
+10. Dark mode uses charcoal `#1F1D1B` (not pure black) and cream text (not pure white).
 
 ## Open-source libraries
 

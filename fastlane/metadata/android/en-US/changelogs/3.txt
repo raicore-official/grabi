@@ -1,0 +1,3 @@
+New theme system: System/Light/Dark with full Material 3 schemes (terracotta, cream, charcoal), instant switch with a smooth crossfade, darkened web pages, matching splash and status bars.
+Player: fixed videos that played audio only - decoder fallback plus a re-extract/progressive/yt-dlp retry chain; new controls with double-tap seek, buffered seekbar, fullscreen, speed and captions.
+Both theme modes are now screenshot-tested in CI.

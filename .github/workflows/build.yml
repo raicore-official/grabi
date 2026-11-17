@@ -44,10 +44,7 @@ jobs:
       - name: Run unit tests
         run: ./gradlew testDebugUnitTest --no-daemon
 
-      - name: Record theme snapshots (light + dark)
-        run: ./gradlew :app:recordPaparazziDebug --no-daemon
-
-      - name: Verify theme snapshots
+      - name: Verify theme snapshots against committed goldens
         run: ./gradlew :app:verifyPaparazziDebug --no-daemon
 
       - name: Run lint
@@ -75,5 +72,7 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: theme-snapshots
-          path: app/src/test/snapshots
+          path: |
+            app/src/test/snapshots
+            app/build/reports/paparazzi
           if-no-files-found: ignore
