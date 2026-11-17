@@ -2,7 +2,7 @@
 
 Open-source, VidMate-style video downloader and player for Android. No ads, no tracking, no API keys. Built by [Raisoft Studio](https://github.com/Raisulxislam).
 
-> **Status: Phase 4 of 7.** Shell, yt-dlp engine, download manager and the Media3 player (YouTube streaming without an API key, quality/speed, audio-only background playback, PiP, history/favorites library) are complete. Browser, adblock and VPN land in later phases — see the roadmap below.
+> **Status: Phase 5 of 7.** Shell, yt-dlp engine, download manager, Media3 player and the built-in browser (tabs, incognito, site grid, video/audio/image detection, EasyList/EasyPrivacy/uBlock adblock with per-site allowlist) are complete. VPN and release polish land in later phases — see the roadmap below.
 
 ## Features
 
@@ -13,7 +13,7 @@ Open-source, VidMate-style video downloader and player for Android. No ads, no t
 | Downloader+ | Playlist/batch downloads | backlog |
 | Download manager | Room-backed queue, foreground service + WorkManager recovery, pause/resume/retry/cancel/delete, 1–3 parallel downloads, Wi-Fi-only, speed/ETA notifications, MediaStore publish (Android 10+), aria2 for direct media links, filters | 3 ✅ |
 | Player | Media3/ExoPlayer, NewPipeExtractor YouTube streaming without an API key, quality/speed pickers, video-only+audio merging, PiP, audio-only mode with MediaSession background playback, resume positions, history, favorites, in-player download button, offline playback of completed downloads | 4 ✅ |
-| Browser | Tabbed WebView (swappable interface), popular-site grid, floating download button, EasyList/EasyPrivacy/uBlock adblock with per-site allowlist | 5 |
+| Browser | Tabbed WebView behind a swappable `BrowserEngine` interface, popular-site grid, DuckDuckGo search, incognito tabs, floating download button, video/audio/**image** detection, EasyList/EasyPrivacy/uBlock adblock with auto-update and per-site allowlist, browser history | 5 ✅ |
 | VPN | VpnService + WireGuard/Outline, import your own configs/keys/subscriptions, split tunneling, kill switch. No bundled servers | 6 |
 | Release | Settings polish, crash handling, F-Droid + GitHub Releases | 7 |
 
@@ -37,7 +37,9 @@ Single Gradle module (`:app`), clean-architecture packages, unidirectional data 
 │                db (Room: downloads ✅ P3, library ✅ P4)  │
 │                stream (NewPipeExtractor) ✅ P4            │
 │                playback (Media3 session service) ✅ P4    │
-│                browser + adblock — P5 · vpn — P6         │
+│                browser (tabs, WebView engine) ✅ P5       │
+│                adblock (filter lists, matcher) ✅ P5      │
+│                vpn — P6                                   │
 └──────────────────────────────────────────────────────────┘
         Hilt wires everything · coroutines/Flow throughout
 ```
@@ -84,6 +86,15 @@ Requirements: minSdk 26 (Android 8.0), targetSdk 34, Kotlin 2.0.21, AGP 8.5.2, G
 - A second Room database (`grabi-library.db`) holds history/favorites so the Phase 3 downloads schema stays untouched.
 - Core-library desugaring (`desugar_jdk_libs_nio`) is enabled for NewPipeExtractor's `java.time`/stream usage below API 33.
 
+## Browser, detection & adblock (Phase 5)
+
+- **Swappable engine:** UI talks to a `BrowserEngine` interface; `WebViewEngine` is the current implementation (WebView created with application context, retained per tab). Up to 8 tabs; normal tabs persist across restarts (DataStore JSON), engines are created lazily and destroyed on close.
+- **Incognito:** per-tab flag — no history recording, DOM storage/form data/cache disabled, and cookies are cleared when the last incognito tab closes. Honest limitation: WebView has one cookie jar per process, so cookies are shared with normal tabs *while* an incognito tab is open.
+- **Search & navigation:** URL bar loads URLs directly, upgrades bare hosts to https, and sends anything else to DuckDuckGo (no API key). New tabs show a popular-site grid. Back/forward/reload, progress bar, browser history sheet with clear.
+- **Media detection:** `shouldInterceptRequest` classifies every subresource with the pure `MediaSniffer` (extension + MIME rules) into video/audio/image; detections are deduped per tab (cap 50) and surfaced in the floating download button's sheet. Detected videos/audio queue through yt-dlp; **images download via a new OkHttp `DirectDownloader`** integrated into the same Room queue (progress, pause/cancel, MediaStore `Pictures/Grabi` on Android 10+). “Download this page” sends the page URL to Home's yt-dlp flow for site players (YouTube etc.).
+- **Adblock:** `AdblockEngine` fetches EasyList + EasyPrivacy + uBlock filters on first browser use and auto-refreshes when older than 7 days (manual update in Settings/menu). The lean Kotlin `FilterListParser` compiles `||domain^`, `@@` exceptions, `||domain/path` and plain substring rules into hash-set/suffix matchers — O(1) per request. Rules with options (`$third-party`, `$domain=`) and cosmetic rules are deliberately skipped: under-block rather than break sites. Per-site allowlist lives in Settings; blocked requests get an empty response.
+- `usesCleartextTraffic` is enabled because a browser must open http:// sites; everything else stays TLS-first.
+
 ### Signing a release
 
 Releases build on tag push (`v*`) via `.github/workflows/release.yml`. Create a keystore **locally, never commit it**:
@@ -113,7 +124,7 @@ Add four repository secrets (Settings → Secrets and variables → Actions): `K
 | aria2 | [aria2/aria2](https://github.com/aria2/aria2) | GPL-2.0-or-later | Segmented direct-link downloads (P3 ✅, via youtubedl-android artifact) | Fast multi-connection downloader |
 | FFmpeg | [FFmpeg/FFmpeg](https://github.com/FFmpeg/FFmpeg) | LGPL-2.1+ (build-dependent) | Muxing/remux to mp4/mp3 (P2, via youtubedl-android artifact) | Standard media toolchain |
 | Media3/ExoPlayer | [androidx/media](https://github.com/androidx/media) | Apache-2.0 | Player, MediaSession, PiP (P4 ✅) | Official ExoPlayer successor |
-| OkHttp | [square/okhttp](https://github.com/square/okhttp) | Apache-2.0 | Extractor HTTP (P4 ✅), filter lists/updates (P5) | Lean, maintained |
+| OkHttp | [square/okhttp](https://github.com/square/okhttp) | Apache-2.0 | Extractor HTTP (P4 ✅), filter lists + image downloads (P5 ✅) | Lean, maintained |
 | Coil | [coil-kt/coil](https://github.com/coil-kt/coil) | Apache-2.0 | Thumbnails (P4 ✅) | Kotlin-first, Compose-native |
 | adblock-rust *(optional upgrade)* | [brave/adblock-rust](https://github.com/brave/adblock-rust) | MPL-2.0 | High-performance filter engine (P5) | Brave-maintained; P5 starts with a lean Kotlin ABP parser, upgrade path if needed |
 | wireguard-android | [WireGuard/wireguard-android](https://github.com/WireGuard/wireguard-android) | Apache-2.0 | Tunnel library + wireguard-go (MIT) backend (P6) | Official, embeddable tunnel |
@@ -153,6 +164,7 @@ Practical consequence: anyone distributing a modified Grabi must publish their s
 - **Scoped storage:** Android 10+ publishes finished files to MediaStore (`Movies/Grabi`, `Music/Grabi`); Android 8–9 keeps them in the app-specific external dir (uninstall deletes them). SAF picker export is a possible later addition.
 - **Background limits:** Android 12+ blocks foreground-service starts from the background; if the OS kills the app mid-download, the queue resumes on next launch (WorkManager + startup recovery). Pause/resume restarts the yt-dlp process and continues the `.part` file rather than freezing it in place.
 - **Player:** YouTube stream URLs are session-bound and expire; a stale history entry may need a re-resolve (Retry). PiP shows the whole player screen scaled down (controls included) rather than a video-only surface. Audio-only background playback relies on the media notification; some OEM battery killers still stop it.
+- **Browser:** detection is extension/MIME-based — MSE/blob streams (YouTube's player) are not sniffed; use “Download this page” there. Adblock is network-level only (no cosmetic filtering, option rules skipped). Incognito shares the cookie jar while open (cleared on last incognito close). WebView fullscreen video (`onShowCustomView`) is not handled yet.
 - **VPN:** user-supplied configs only; no bundled servers. Kill switch and split tunneling are best-effort on Android (always-on VPN is a system setting).
 - **GPL obligations:** distributing binaries requires offering source.
 - **Low-end devices:** Python+yt-dlp startup is heavy; engine init is lazy and off the main thread (P2).
