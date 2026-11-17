@@ -50,7 +50,7 @@ class TabManager @Inject constructor(
     private var themeDark = false
     private var themeBackground: Int? = null
     var onFileChooser: ((WebChromeClient.FileChooserParams) -> Unit)? = null
-    var onDownload: ((String) -> Unit)? = null
+    var onDownload: ((String, String?, String?, String?) -> Unit)? = null
 
     val activeTab: StateFlow<Tab?> = combine(_tabs, _activeId) { tabs, id ->
         tabs.firstOrNull { it.id == id }
@@ -197,7 +197,7 @@ class TabManager @Inject constructor(
             contentDisposition: String?,
             mimeType: String?,
         ) {
-            if (_activeId.value == id) onDownload?.invoke(url)
+            if (_activeId.value == id) onDownload?.invoke(url, userAgent, contentDisposition, mimeType)
         }
     }
 

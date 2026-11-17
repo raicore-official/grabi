@@ -170,10 +170,12 @@ class PlaybackService : MediaSessionService() {
                         audioUrl = args.getString(KEY_AUDIO_URL),
                         subtitleUrl = args.getString(KEY_SUBTITLE_URL),
                         subtitleLanguage = args.getString(KEY_SUBTITLE_LANGUAGE),
+                        title = args.getString(KEY_TITLE),
                     )
                     if (source != null) {
                         currentMediaId = mediaId
                         currentPageUrl = args.getString(KEY_PAGE_URL)
+                        player.stop()
                         player.setMediaSource(source, args.getLong(KEY_POSITION_MS, 0L))
                         player.prepare()
                     }
@@ -189,9 +191,10 @@ class PlaybackService : MediaSessionService() {
         audioUrl: String?,
         subtitleUrl: String?,
         subtitleLanguage: String?,
+        title: String?,
     ): MediaSource? {
-        val video = videoUrl?.let { mediaSource(it, subtitleUrl, subtitleLanguage) }
-        val audio = audioUrl?.let { mediaSource(it, null, null) }
+        val video = videoUrl?.let { mediaSource(it, subtitleUrl, subtitleLanguage, title) }
+        val audio = audioUrl?.let { mediaSource(it, null, null, title) }
         return when {
             video != null && audio != null -> MergingMediaSource(video, audio)
             video != null -> video
@@ -199,9 +202,21 @@ class PlaybackService : MediaSessionService() {
         }
     }
 
-    private fun mediaSource(url: String, subtitleUrl: String?, subtitleLanguage: String?): MediaSource {
+    private fun mediaSource(
+        url: String,
+        subtitleUrl: String?,
+        subtitleLanguage: String?,
+        title: String? = null,
+    ): MediaSource {
         val uri = Uri.parse(url)
-        val builder = MediaItem.Builder().setUri(uri)
+        val builder = MediaItem.Builder()
+            .setUri(uri)
+            .setMediaMetadata(
+                androidx.media3.common.MediaMetadata.Builder()
+                    .setTitle(title)
+                    .setIsPlayable(true)
+                    .build(),
+            )
         if (subtitleUrl != null) {
             builder.setSubtitleConfigurations(
                 listOf(
@@ -239,5 +254,6 @@ class PlaybackService : MediaSessionService() {
         const val KEY_SUBTITLE_LANGUAGE = "subtitle_language"
         const val KEY_MEDIA_ID = "media_id"
         const val KEY_PAGE_URL = "page_url"
+        const val KEY_TITLE = "title"
     }
 }

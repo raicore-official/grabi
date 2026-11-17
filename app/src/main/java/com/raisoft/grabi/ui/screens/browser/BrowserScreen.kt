@@ -41,6 +41,7 @@ import com.raisoft.grabi.data.db.DownloadEntity
 import com.raisoft.grabi.domain.VideoIds
 import com.raisoft.grabi.domain.model.DownloadStatus
 import androidx.compose.material.icons.rounded.Image
+import androidx.compose.material.icons.rounded.InsertDriveFile
 import androidx.compose.material.icons.rounded.MoreVert
 import androidx.compose.material.icons.rounded.Refresh
 import androidx.compose.material.icons.rounded.Tab
@@ -713,6 +714,7 @@ private fun DetectedRow(
                     MediaKind.VIDEO -> Icons.Rounded.VideoFile
                     MediaKind.AUDIO -> Icons.Rounded.Audiotrack
                     MediaKind.IMAGE -> Icons.Rounded.Image
+                    MediaKind.FILE -> Icons.Rounded.InsertDriveFile
                 },
                 contentDescription = null,
                 tint = MaterialTheme.colorScheme.primary,

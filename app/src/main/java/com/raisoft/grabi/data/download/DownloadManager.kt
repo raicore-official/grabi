@@ -279,14 +279,15 @@ class DownloadManager @Inject constructor(
                     } ?: cached?.videoOptions?.firstOrNull {
                         it.audioUrl == null && it.height in 1..720
                     }
+                    MediaKind.IMAGE -> null
                     MediaKind.AUDIO -> cached?.audioOptions?.firstOrNull()
-                    else -> null
+                    MediaKind.FILE -> null
                 }
-                val file = if (option.kind == MediaKind.IMAGE) {
+                val file = if (option.kind == MediaKind.IMAGE || option.kind == MediaKind.FILE) {
                     val outputDir = File(context.getExternalFilesDir(null), "Grabi").apply { mkdirs() }
                     directDownloader.download(
                         entity.url,
-                        File(outputDir, imageFileName(entity.title, entity.url)),
+                        File(outputDir, fileName(entity.title, entity.url, option.kind)),
                         entity.id,
                         onProgress,
                     )
@@ -303,7 +304,9 @@ class DownloadManager @Inject constructor(
                 } else {
                     engine.download(entity.url, option, entity.subtitles, entity.id, onProgress)
                 }
-                if (option.kind != MediaKind.IMAGE) verifyTracks(file, option.kind)
+                if (option.kind == MediaKind.VIDEO || option.kind == MediaKind.AUDIO) {
+                    verifyTracks(file, option.kind)
+                }
                 val seconds = (System.currentTimeMillis() - startedAt) / 1000.0
                 if (seconds > 0) {
                     DebugLog.line(
@@ -440,6 +443,14 @@ class DownloadManager @Inject constructor(
             val ext = url.substringBefore('?').substringAfterLast('.', "").lowercase()
             val safeExt = if (ext in setOf("jpg", "jpeg", "png", "webp", "gif", "bmp", "avif")) ext else "jpg"
             return "$base.$safeExt"
+        }
+
+        private fun fileName(title: String, url: String, kind: MediaKind): String {
+            if (kind == MediaKind.IMAGE) return imageFileName(title, url)
+            val safeTitle = title.replace(Regex("[^A-Za-z0-9._-]"), "_").take(80).ifBlank { "download" }
+            val ext = url.substringBefore('?').substringAfterLast('.', "").lowercase()
+                .takeIf { it.matches(Regex("[a-z0-9]{1,8}")) } ?: "bin"
+            return "$safeTitle.$ext"
         }
     }
 }

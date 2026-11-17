@@ -24,6 +24,7 @@ object MediaSniffer {
             in videoExtensions -> MediaKind.VIDEO
             in audioExtensions -> MediaKind.AUDIO
             in imageExtensions -> MediaKind.IMAGE
+            "apk", "zip", "rar", "7z", "pdf", "conf", "ovpn" -> MediaKind.FILE
             else -> null
         }
     }

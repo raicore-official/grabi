@@ -7,8 +7,6 @@ import android.webkit.ValueCallback
 import android.webkit.DownloadListener
 import android.webkit.SslErrorHandler
 import android.net.Uri
-import android.app.DownloadManager
-import android.os.Environment
 import android.webkit.WebResourceRequest
 import android.webkit.WebResourceResponse
 import android.webkit.WebSettings
@@ -106,21 +104,6 @@ class WebViewEngine(
         }
         view.setDownloadListener { url, userAgent, contentDisposition, mimeType, _ ->
             listener.onDownload(url, userAgent, contentDisposition, mimeType)
-            val request = DownloadManager.Request(Uri.parse(url)).apply {
-                setMimeType(mimeType)
-                setTitle(contentDisposition ?: Uri.parse(url).lastPathSegment ?: "download")
-                setDescription("Grabi Browser")
-                setNotificationVisibility(
-                    DownloadManager.Request.VISIBILITY_VISIBLE_NOTIFY_COMPLETED,
-                )
-                setDestinationInExternalFilesDir(
-                    context,
-                    Environment.DIRECTORY_DOWNLOADS,
-                    Uri.parse(url).lastPathSegment ?: "download",
-                )
-                if (!userAgent.isNullOrBlank()) addRequestHeader("User-Agent", userAgent)
-            }
-            context.getSystemService(DownloadManager::class.java).enqueue(request)
         }
     }
 

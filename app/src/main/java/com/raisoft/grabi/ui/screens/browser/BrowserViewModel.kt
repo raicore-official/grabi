@@ -12,6 +12,7 @@ import com.raisoft.grabi.data.download.DownloadManager
 import com.raisoft.grabi.data.settings.SettingsRepository
 import com.raisoft.grabi.data.settings.UserSettings
 import com.raisoft.grabi.domain.LinkValidator
+import com.raisoft.grabi.domain.MediaSniffer
 import com.raisoft.grabi.domain.MediaFormatMapper
 import com.raisoft.grabi.domain.model.DetectedMedia
 import com.raisoft.grabi.domain.model.MediaKind
@@ -82,7 +83,26 @@ class BrowserViewModel @Inject constructor(
     }
 
     fun setDownloadHandler(handler: ((String) -> Unit)?) {
-        tabManager.onDownload = handler
+        tabManager.onDownload = { url, _, contentDisposition, mimeType ->
+            handler?.invoke(url)
+            val kind = MediaSniffer.classify(url, mimeType) ?: MediaKind.FILE
+            val title = contentDisposition
+                ?.substringAfter("filename=", "")
+                ?.trim('"', '\'')
+                ?.takeIf { it.isNotBlank() }
+                ?: Uri.parse(url).lastPathSegment.orEmpty().ifBlank { "download" }
+            val option = MediaOption(
+                id = "browser-${kind.name.lowercase()}",
+                label = title,
+                kind = kind,
+                formatSelector = url,
+                audioFormat = null,
+                sizeBytes = null,
+            )
+            viewModelScope.launch {
+                downloadManager.enqueue(url, title, option, false)
+            }
+        }
     }
 
     fun acceptFileChooser(uris: Array<Uri>?) = tabManager.acceptFileChooser(uris)
@@ -110,6 +130,8 @@ class BrowserViewModel @Inject constructor(
                 )
             MediaKind.AUDIO ->
                 MediaOption("audio", "Audio", MediaKind.AUDIO, "bestaudio/best", "m4a", null)
+            MediaKind.FILE ->
+                MediaOption("file", "File", MediaKind.FILE, media.url, null, media.sizeBytes)
         }
         viewModelScope.launch { downloadManager.enqueue(media.url, title, option, false) }
     }

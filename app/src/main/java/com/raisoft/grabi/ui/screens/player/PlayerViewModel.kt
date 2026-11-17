@@ -483,6 +483,7 @@ class PlayerViewModel @Inject constructor(
                 PlaybackService.KEY_SUBTITLE_LANGUAGE to info?.subtitleLanguage,
                 PlaybackService.KEY_MEDIA_ID to "${videoUrl.orEmpty()}|${audioUrl.orEmpty()}",
                 PlaybackService.KEY_PAGE_URL to url,
+                PlaybackService.KEY_TITLE to (info?.title ?: fallbackTitle).toString(),
             ),
         )
         controller.playWhenReady = true

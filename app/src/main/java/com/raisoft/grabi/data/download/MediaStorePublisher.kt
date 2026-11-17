@@ -18,11 +18,13 @@ object MediaStorePublisher {
             MediaKind.VIDEO -> MediaStore.Video.Media.EXTERNAL_CONTENT_URI
             MediaKind.AUDIO -> MediaStore.Audio.Media.EXTERNAL_CONTENT_URI
             MediaKind.IMAGE -> MediaStore.Images.Media.EXTERNAL_CONTENT_URI
+            MediaKind.FILE -> MediaStore.Files.getContentUri("external")
         }
         val directory = when (kind) {
             MediaKind.VIDEO -> Environment.DIRECTORY_MOVIES
             MediaKind.AUDIO -> Environment.DIRECTORY_MUSIC
             MediaKind.IMAGE -> Environment.DIRECTORY_PICTURES
+            MediaKind.FILE -> Environment.DIRECTORY_DOWNLOADS
         }
         val values = ContentValues().apply {
             put(MediaStore.MediaColumns.DISPLAY_NAME, file.name)
@@ -63,6 +65,14 @@ object MediaStorePublisher {
             "flac" -> "audio/flac"
             "wav" -> "audio/wav"
             else -> "audio/mpeg"
+        }
+        MediaKind.FILE -> when (ext.lowercase()) {
+            "apk" -> "application/vnd.android.package-archive"
+            "pdf" -> "application/pdf"
+            "zip" -> "application/zip"
+            "json" -> "application/json"
+            "txt", "conf", "ovpn", "csv" -> "text/plain"
+            else -> "application/octet-stream"
         }
     }
 }

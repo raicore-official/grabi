@@ -9,7 +9,7 @@ data class FormatSpec(
     val sizeBytes: Long,
 )
 
-enum class MediaKind { VIDEO, AUDIO, IMAGE }
+enum class MediaKind { VIDEO, AUDIO, IMAGE, FILE }
 
 data class MediaOption(
     val id: String,
