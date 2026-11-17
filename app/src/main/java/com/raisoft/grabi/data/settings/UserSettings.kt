@@ -7,4 +7,7 @@ data class UserSettings(
     val dynamicColor: Boolean = false,
     val downloadParallelism: Int = 2,
     val wifiOnly: Boolean = false,
+    val adblockEnabled: Boolean = true,
+    val adblockAllowlist: Set<String> = emptySet(),
+    val adblockLastUpdated: Long = 0L,
 )
