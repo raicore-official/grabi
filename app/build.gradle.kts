@@ -89,6 +89,11 @@ dependencies {
     implementation(libs.kotlinx.coroutines.android)
     implementation(libs.youtubedl.library)
     implementation(libs.youtubedl.ffmpeg)
+    implementation(libs.youtubedl.aria2c)
+    implementation(libs.androidx.room.runtime)
+    implementation(libs.androidx.room.ktx)
+    ksp(libs.androidx.room.compiler)
+    implementation(libs.androidx.work.runtime.ktx)
 
     testImplementation(libs.junit)
 }

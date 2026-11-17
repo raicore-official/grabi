@@ -22,4 +22,18 @@ object LinkValidator {
     // Share intents often wrap the link in text ("Watch this: <url>"); pull the first URL out.
     fun extractUrl(text: String): String? =
         urlPattern.find(text)?.value?.trimEnd('.', ',', ';', ')', ']', '"', '\'')
+
+    private val directExtensions = setOf(
+        "mp4", "mkv", "webm", "mov", "avi", "m4v",
+        "mp3", "m4a", "opus", "ogg", "flac", "wav", "aac",
+    )
+
+    fun isDirectMediaUrl(input: String): Boolean {
+        val path = try {
+            URI(input.trim()).path
+        } catch (_: URISyntaxException) {
+            null
+        } ?: return false
+        return path.substringAfterLast('.', "").lowercase() in directExtensions
+    }
 }

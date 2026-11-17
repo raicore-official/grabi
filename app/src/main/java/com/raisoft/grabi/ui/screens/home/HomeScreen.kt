@@ -50,10 +50,11 @@ import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.raisoft.grabi.R
-import com.raisoft.grabi.data.download.DownloadJob
-import com.raisoft.grabi.data.download.DownloadStatus
+import com.raisoft.grabi.data.db.DownloadEntity
+import com.raisoft.grabi.domain.model.DownloadStatus
 import com.raisoft.grabi.domain.model.MediaKind
-import java.util.Locale
+import com.raisoft.grabi.ui.formatDuration
+import com.raisoft.grabi.ui.formatSize
 
 @OptIn(ExperimentalLayoutApi::class)
 @Composable
@@ -244,7 +245,7 @@ fun HomeScreen(viewModel: HomeViewModel = hiltViewModel()) {
                         Button(
                             onClick = viewModel::startDownload,
                             modifier = Modifier.fillMaxWidth(),
-                            enabled = job?.status != DownloadStatus.RUNNING,
+                            enabled = job?.status != DownloadStatus.RUNNING.name,
                         ) {
                             Text(stringResource(R.string.home_download_button))
                         }
@@ -256,6 +257,9 @@ fun HomeScreen(viewModel: HomeViewModel = hiltViewModel()) {
             if (currentJob != null) {
                 DownloadCard(
                     job = currentJob,
+                    onPause = viewModel::pauseDownload,
+                    onResume = viewModel::resumeDownload,
+                    onRetry = viewModel::retryDownload,
                     onCancel = viewModel::cancelDownload,
                     onDismiss = viewModel::dismissDownload,
                 )
@@ -303,7 +307,15 @@ fun HomeScreen(viewModel: HomeViewModel = hiltViewModel()) {
 }
 
 @Composable
-private fun DownloadCard(job: DownloadJob, onCancel: () -> Unit, onDismiss: () -> Unit) {
+private fun DownloadCard(
+    job: DownloadEntity,
+    onPause: () -> Unit,
+    onResume: () -> Unit,
+    onRetry: () -> Unit,
+    onCancel: () -> Unit,
+    onDismiss: () -> Unit,
+) {
+    val status = DownloadStatus.valueOf(job.status)
     ElevatedCard(Modifier.fillMaxWidth()) {
         Column(
             modifier = Modifier.padding(16.dp),
@@ -320,7 +332,7 @@ private fun DownloadCard(job: DownloadJob, onCancel: () -> Unit, onDismiss: () -
                 style = MaterialTheme.typography.bodySmall,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
             )
-            when (job.status) {
+            when (status) {
                 DownloadStatus.RUNNING -> {
                     LinearProgressIndicator(
                         progress = { job.progress },
@@ -332,68 +344,99 @@ private fun DownloadCard(job: DownloadJob, onCancel: () -> Unit, onDismiss: () -
                             style = MaterialTheme.typography.bodySmall,
                         )
                         Spacer(Modifier.weight(1f))
-                        if (job.etaSeconds >= 0) {
-                            Text(
-                                text = stringResource(
-                                    R.string.home_eta,
-                                    formatDuration(job.etaSeconds.toInt()),
-                                ),
-                                style = MaterialTheme.typography.bodySmall,
-                            )
+                        val tail = listOfNotNull(
+                            job.speed,
+                            job.etaSeconds.takeIf { it >= 0 }
+                                ?.let { stringResource(R.string.home_eta, formatDuration(it.toInt())) },
+                        ).joinToString(" · ")
+                        if (tail.isNotBlank()) {
+                            Text(tail, style = MaterialTheme.typography.bodySmall)
                         }
                     }
+                    Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                        OutlinedButton(onClick = onPause, modifier = Modifier.weight(1f)) {
+                            Text(stringResource(R.string.action_pause))
+                        }
+                        OutlinedButton(onClick = onCancel, modifier = Modifier.weight(1f)) {
+                            Text(stringResource(R.string.action_cancel))
+                        }
+                    }
+                }
+                DownloadStatus.QUEUED, DownloadStatus.WAITING_WIFI -> {
+                    Text(
+                        text = stringResource(
+                            if (status == DownloadStatus.QUEUED) {
+                                R.string.status_queued
+                            } else {
+                                R.string.status_waiting_wifi
+                            },
+                        ),
+                        style = MaterialTheme.typography.bodySmall,
+                    )
                     OutlinedButton(onClick = onCancel, modifier = Modifier.fillMaxWidth()) {
-                        Text(stringResource(R.string.home_download_cancel))
+                        Text(stringResource(R.string.action_cancel))
+                    }
+                }
+                DownloadStatus.PAUSED -> {
+                    Text(
+                        text = stringResource(R.string.status_paused),
+                        style = MaterialTheme.typography.bodySmall,
+                    )
+                    Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                        OutlinedButton(onClick = onResume, modifier = Modifier.weight(1f)) {
+                            Text(stringResource(R.string.action_resume))
+                        }
+                        OutlinedButton(onClick = onCancel, modifier = Modifier.weight(1f)) {
+                            Text(stringResource(R.string.action_cancel))
+                        }
                     }
                 }
                 DownloadStatus.DONE -> {
                     Text(
-                        text = stringResource(R.string.home_download_done, job.filePath.orEmpty()),
+                        text = stringResource(
+                            R.string.downloads_saved_to,
+                            job.contentUri ?: job.filePath.orEmpty(),
+                        ),
                         style = MaterialTheme.typography.bodySmall,
+                        maxLines = 3,
+                        overflow = TextOverflow.Ellipsis,
                     )
                     Button(onClick = onDismiss, modifier = Modifier.fillMaxWidth()) {
-                        Text(stringResource(R.string.home_dismiss))
+                        Text(stringResource(R.string.action_dismiss))
                     }
                 }
                 DownloadStatus.FAILED -> {
                     Text(
-                        text = job.error ?: stringResource(R.string.home_download_failed),
+                        text = job.error ?: stringResource(R.string.status_failed),
                         style = MaterialTheme.typography.bodySmall,
                         color = MaterialTheme.colorScheme.error,
                         maxLines = 6,
                         overflow = TextOverflow.Ellipsis,
                     )
-                    Button(onClick = onDismiss, modifier = Modifier.fillMaxWidth()) {
-                        Text(stringResource(R.string.home_dismiss))
+                    Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                        OutlinedButton(onClick = onRetry, modifier = Modifier.weight(1f)) {
+                            Text(stringResource(R.string.action_retry))
+                        }
+                        OutlinedButton(onClick = onDismiss, modifier = Modifier.weight(1f)) {
+                            Text(stringResource(R.string.action_dismiss))
+                        }
                     }
                 }
                 DownloadStatus.CANCELED -> {
                     Text(
-                        text = stringResource(R.string.home_download_canceled),
+                        text = stringResource(R.string.status_canceled),
                         style = MaterialTheme.typography.bodySmall,
                     )
-                    Button(onClick = onDismiss, modifier = Modifier.fillMaxWidth()) {
-                        Text(stringResource(R.string.home_dismiss))
+                    Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                        OutlinedButton(onClick = onRetry, modifier = Modifier.weight(1f)) {
+                            Text(stringResource(R.string.action_retry))
+                        }
+                        OutlinedButton(onClick = onDismiss, modifier = Modifier.weight(1f)) {
+                            Text(stringResource(R.string.action_dismiss))
+                        }
                     }
                 }
             }
         }
     }
-}
-
-private fun formatDuration(totalSeconds: Int): String {
-    val hours = totalSeconds / 3600
-    val minutes = (totalSeconds % 3600) / 60
-    val seconds = totalSeconds % 60
-    return if (hours > 0) {
-        String.format(Locale.US, "%d:%02d:%02d", hours, minutes, seconds)
-    } else {
-        String.format(Locale.US, "%d:%02d", minutes, seconds)
-    }
-}
-
-private fun formatSize(bytes: Long): String = when {
-    bytes >= 1_073_741_824 -> String.format(Locale.US, "%.1f GB", bytes / 1_073_741_824.0)
-    bytes >= 1_048_576 -> String.format(Locale.US, "%.1f MB", bytes / 1_048_576.0)
-    else -> String.format(Locale.US, "%.0f KB", bytes / 1024.0)
 }

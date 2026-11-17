@@ -110,6 +110,50 @@ fun SettingsScreen(viewModel: SettingsViewModel = hiltViewModel()) {
         ElevatedCard(Modifier.fillMaxWidth()) {
             Column(
                 modifier = Modifier.padding(16.dp),
+                verticalArrangement = Arrangement.spacedBy(12.dp),
+            ) {
+                Text(
+                    text = stringResource(R.string.settings_downloads),
+                    style = MaterialTheme.typography.titleMedium,
+                )
+                Text(
+                    text = stringResource(R.string.settings_parallelism),
+                    style = MaterialTheme.typography.bodyLarge,
+                )
+                SingleChoiceSegmentedButtonRow(Modifier.fillMaxWidth()) {
+                    listOf(1, 2, 3).forEachIndexed { index, count ->
+                        SegmentedButton(
+                            selected = settings.downloadParallelism == count,
+                            onClick = { viewModel.setDownloadParallelism(count) },
+                            shape = SegmentedButtonDefaults.itemShape(index = index, count = 3),
+                        ) {
+                            Text("$count")
+                        }
+                    }
+                }
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    Column(Modifier.weight(1f)) {
+                        Text(
+                            text = stringResource(R.string.settings_wifi_only),
+                            style = MaterialTheme.typography.bodyLarge,
+                        )
+                        Text(
+                            text = stringResource(R.string.settings_wifi_only_summary),
+                            style = MaterialTheme.typography.bodySmall,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        )
+                    }
+                    Switch(
+                        checked = settings.wifiOnly,
+                        onCheckedChange = viewModel::setWifiOnly,
+                    )
+                }
+            }
+        }
+
+        ElevatedCard(Modifier.fillMaxWidth()) {
+            Column(
+                modifier = Modifier.padding(16.dp),
                 verticalArrangement = Arrangement.spacedBy(8.dp),
             ) {
                 Text(

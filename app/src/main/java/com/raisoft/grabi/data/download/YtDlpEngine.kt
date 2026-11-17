@@ -1,6 +1,7 @@
 package com.raisoft.grabi.data.download
 
 import android.content.Context
+import com.raisoft.grabi.domain.LinkValidator
 import com.raisoft.grabi.domain.MediaFormatMapper
 import com.raisoft.grabi.domain.model.FormatSpec
 import com.raisoft.grabi.domain.model.MediaInfo
@@ -70,7 +71,7 @@ class YtDlpEngine @Inject constructor(
         option: MediaOption,
         subtitles: Boolean,
         processId: String,
-        onProgress: (percent: Float, etaSeconds: Long) -> Unit,
+        onProgress: (percent: Float, etaSeconds: Long, line: String) -> Unit,
     ): File {
         ensureInitialized()
         val outputDir = File(context.getExternalFilesDir(null), "Grabi").apply { mkdirs() }
@@ -81,6 +82,10 @@ class YtDlpEngine @Inject constructor(
             .addOption("--newline")
             .addOption("-o", File(outputDir, "%(title)s.%(ext)s").absolutePath)
             .addOption("--print", "after_move:filepath")
+        if (LinkValidator.isDirectMediaUrl(url)) {
+            val aria2c = File(context.applicationInfo.nativeLibraryDir, "libaria2c.so")
+            if (aria2c.exists()) request.addOption("--external-downloader", aria2c.absolutePath)
+        }
         if (option.kind == MediaKind.VIDEO) {
             request.addOption("--merge-output-format", "mp4")
         } else {
@@ -96,8 +101,8 @@ class YtDlpEngine @Inject constructor(
                 .addOption("--convert-subs", "srt")
         }
         val response = withContext(Dispatchers.IO) {
-            YoutubeDL.getInstance().execute(request, processId) { percent, eta, _ ->
-                onProgress(percent, eta)
+            YoutubeDL.getInstance().execute(request, processId) { percent, eta, line ->
+                onProgress(percent, eta, line)
             }
         }
         val printedPath = response.out.lines().lastOrNull { it.isNotBlank() }?.trim()

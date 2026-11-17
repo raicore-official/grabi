@@ -3,6 +3,7 @@ package com.raisoft.grabi.data.settings
 import android.content.Context
 import androidx.datastore.preferences.core.booleanPreferencesKey
 import androidx.datastore.preferences.core.edit
+import androidx.datastore.preferences.core.intPreferencesKey
 import androidx.datastore.preferences.core.stringPreferencesKey
 import androidx.datastore.preferences.preferencesDataStore
 import dagger.hilt.android.qualifiers.ApplicationContext
@@ -19,6 +20,8 @@ class SettingsRepository @Inject constructor(
 ) {
     private val themeModeKey = stringPreferencesKey("theme_mode")
     private val dynamicColorKey = booleanPreferencesKey("dynamic_color")
+    private val parallelismKey = intPreferencesKey("download_parallelism")
+    private val wifiOnlyKey = booleanPreferencesKey("wifi_only")
 
     val settings: Flow<UserSettings> = context.settingsDataStore.data.map { preferences ->
         UserSettings(
@@ -26,6 +29,8 @@ class SettingsRepository @Inject constructor(
                 ?.let { stored -> runCatching { ThemeMode.valueOf(stored) }.getOrNull() }
                 ?: ThemeMode.DARK,
             dynamicColor = preferences[dynamicColorKey] ?: false,
+            downloadParallelism = (preferences[parallelismKey] ?: 2).coerceIn(1, 3),
+            wifiOnly = preferences[wifiOnlyKey] ?: false,
         )
     }
 
@@ -35,5 +40,13 @@ class SettingsRepository @Inject constructor(
 
     suspend fun setDynamicColor(enabled: Boolean) {
         context.settingsDataStore.edit { it[dynamicColorKey] = enabled }
+    }
+
+    suspend fun setDownloadParallelism(value: Int) {
+        context.settingsDataStore.edit { it[parallelismKey] = value.coerceIn(1, 3) }
+    }
+
+    suspend fun setWifiOnly(enabled: Boolean) {
+        context.settingsDataStore.edit { it[wifiOnlyKey] = enabled }
     }
 }

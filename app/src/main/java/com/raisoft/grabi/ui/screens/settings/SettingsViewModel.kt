@@ -45,4 +45,12 @@ class SettingsViewModel @Inject constructor(
     fun setDynamicColor(enabled: Boolean) {
         viewModelScope.launch { settingsRepository.setDynamicColor(enabled) }
     }
+
+    fun setDownloadParallelism(value: Int) {
+        viewModelScope.launch { settingsRepository.setDownloadParallelism(value) }
+    }
+
+    fun setWifiOnly(enabled: Boolean) {
+        viewModelScope.launch { settingsRepository.setWifiOnly(enabled) }
+    }
 }
