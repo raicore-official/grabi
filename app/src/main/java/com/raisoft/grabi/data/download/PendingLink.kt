@@ -5,6 +5,7 @@ import javax.inject.Singleton
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.flow.getAndUpdate
 
 @Singleton
 class PendingLink @Inject constructor() {
@@ -15,5 +16,5 @@ class PendingLink @Inject constructor() {
         _url.value = link
     }
 
-    fun consume(): String? = _url.getAndSet(null)
+    fun consume(): String? = _url.getAndUpdate { null }
 }
