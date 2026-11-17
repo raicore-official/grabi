@@ -29,7 +29,30 @@
     <string name="home_step_3">3 · Download in the background and play it offline, anytime.</string>
 
     <string name="browser_title">Built-in browser</string>
-    <string name="browser_message">A tabbed browser with a popular-site grid, floating download button and ad blocking arrives in Phase 5.</string>
+    <string name="browser_back">Back</string>
+    <string name="browser_forward">Forward</string>
+    <string name="browser_url_hint">Search or type a URL</string>
+    <string name="browser_tabs">Tabs</string>
+    <string name="browser_menu">Menu</string>
+    <string name="browser_new_tab">New tab</string>
+    <string name="browser_new_incognito">New incognito tab</string>
+    <string name="browser_incognito">Incognito</string>
+    <string name="browser_incognito_hint">Incognito: history is not saved and cookies are cleared when the last incognito tab closes.</string>
+    <string name="browser_reload">Reload</string>
+    <string name="browser_history">Browser history</string>
+    <string name="browser_history_empty">Pages you visit appear here. Incognito visits are never recorded.</string>
+    <string name="browser_clear_history">Clear</string>
+    <string name="browser_allow_site">Allow ads on this site</string>
+    <string name="browser_block_site">Block ads on this site</string>
+    <string name="browser_update_filters">Update filter lists</string>
+    <string name="browser_updating_filters">Updating filters…</string>
+    <string name="browser_download_page">Download this page</string>
+    <string name="browser_detected_title">Detected media</string>
+    <string name="browser_detected_empty">Nothing detected yet. Direct video, audio and image links are captured while pages load; use “Download this page” for site players like YouTube.</string>
+    <string name="browser_download">Download</string>
+    <string name="browser_sites_title">Popular sites</string>
+    <string name="browser_hint">Search with DuckDuckGo or type a URL. Media on a page is detected automatically — tap the floating download button.</string>
+    <string name="browser_close_tab">Close tab</string>
 
     <string name="downloads_title">Downloads</string>
     <string name="downloads_empty">Nothing here yet. Grab a link on Home and it will show up in this queue.</string>
@@ -88,6 +111,17 @@
     <string name="settings_parallelism">Parallel downloads</string>
     <string name="settings_wifi_only">Wi-Fi only</string>
     <string name="settings_wifi_only_summary">Hold the queue when Wi-Fi is unavailable.</string>
+    <string name="settings_browser">Browser &amp; adblock</string>
+    <string name="settings_adblock">Block ads and trackers</string>
+    <string name="settings_adblock_summary">EasyList · EasyPrivacy · uBlock filters</string>
+    <string name="settings_adblock_update">Update filter lists</string>
+    <string name="settings_adblock_updating">Updating…</string>
+    <string name="settings_adblock_updated">Filters updated: %1$s</string>
+    <string name="settings_adblock_never">never</string>
+    <string name="settings_adblock_now">just now</string>
+    <string name="settings_adblock_hours">%1$d h ago</string>
+    <string name="settings_adblock_days">%1$d d ago</string>
+    <string name="settings_adblock_allowlist">Allowlisted sites: %1$d</string>
     <string name="settings_about">About</string>
     <string name="settings_version">Version %1$s</string>
     <string name="settings_engine">yt-dlp engine: %1$s</string>
@@ -99,7 +133,7 @@
     <string name="roadmap_phase_2">Phase 2 · yt-dlp engine, link-to-download flow — done</string>
     <string name="roadmap_phase_3">Phase 3 · Download manager, queue, storage — done</string>
     <string name="roadmap_phase_4">Phase 4 · Media3 player, audio mode, background playback — done</string>
-    <string name="roadmap_phase_5">Phase 5 · Browser, video detection, adblock</string>
+    <string name="roadmap_phase_5">Phase 5 · Browser, video/image detection, adblock, incognito — done</string>
     <string name="roadmap_phase_6">Phase 6 · VPN (WireGuard / Outline, your own servers)</string>
     <string name="roadmap_phase_7">Phase 7 · Polish, crash handling, F-Droid release</string>
 </resources>

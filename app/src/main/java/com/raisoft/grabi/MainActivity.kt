@@ -48,7 +48,7 @@ class MainActivity : ComponentActivity() {
                 themeMode = settings.themeMode,
                 dynamicColor = settings.dynamicColor,
             ) {
-                GrabiApp()
+                GrabiApp(pendingLink = pendingLink)
             }
         }
     }

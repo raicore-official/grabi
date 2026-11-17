@@ -20,6 +20,7 @@ import androidx.navigation.compose.composable
 import androidx.navigation.compose.currentBackStackEntryAsState
 import androidx.navigation.compose.rememberNavController
 import androidx.navigation.navArgument
+import com.raisoft.grabi.data.download.PendingLink
 import com.raisoft.grabi.ui.navigation.TopLevelDestination
 import com.raisoft.grabi.ui.screens.browser.BrowserScreen
 import com.raisoft.grabi.ui.screens.downloads.DownloadsScreen
@@ -29,7 +30,7 @@ import com.raisoft.grabi.ui.screens.player.PlayerScreen
 import com.raisoft.grabi.ui.screens.settings.SettingsScreen
 
 @Composable
-fun GrabiApp() {
+fun GrabiApp(pendingLink: PendingLink) {
     val navController = rememberNavController()
     val backStackEntry by navController.currentBackStackEntryAsState()
     val currentRoute = backStackEntry?.destination?.route
@@ -77,7 +78,16 @@ fun GrabiApp() {
             exitTransition = { fadeOut(tween(220)) },
         ) {
             composable(TopLevelDestination.HOME.route) { HomeScreen() }
-            composable(TopLevelDestination.BROWSER.route) { BrowserScreen() }
+            composable(TopLevelDestination.BROWSER.route) {
+                BrowserScreen(
+                    onDownloadPage = { url ->
+                        pendingLink.offer(url)
+                        navController.navigate(TopLevelDestination.HOME.route) {
+                            launchSingleTop = true
+                        }
+                    },
+                )
+            }
             composable(TopLevelDestination.DOWNLOADS.route) {
                 DownloadsScreen(
                     onPlay = { entity ->
