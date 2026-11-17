@@ -2,7 +2,7 @@
 
 Open-source, VidMate-style video downloader and player for Android. No ads, no tracking, no API keys. Built by [Raisoft Studio](https://github.com/Raisulxislam).
 
-> **Status: Phase 3 of 7.** Shell, yt-dlp engine and the download manager (persistent queue, pause/resume/retry, notifications, Wi-Fi-only, MediaStore) are complete. Playback, browser, adblock and VPN land in later phases — see the roadmap below.
+> **Status: Phase 4 of 7.** Shell, yt-dlp engine, download manager and the Media3 player (YouTube streaming without an API key, quality/speed, audio-only background playback, PiP, history/favorites library) are complete. Browser, adblock and VPN land in later phases — see the roadmap below.
 
 ## Features
 
@@ -10,9 +10,9 @@ Open-source, VidMate-style video downloader and player for Android. No ads, no t
 |---|---|---|
 | Shell | Material 3 dark-first UI, bottom nav (Home · Browser · Downloads · Library · Settings), Montserrat/charcoal-ember theme, dynamic color option | 1 ✅ |
 | Downloader | yt-dlp engine (1000+ sites), paste/share links, 144p–4K + mp3/m4a/opus picker, English subtitles, background yt-dlp auto-update, cancel | 2 ✅ |
-| Downloader+ | NewPipeExtractor YouTube fallback, playlist/batch downloads | 4+ |
+| Downloader+ | Playlist/batch downloads | backlog |
 | Download manager | Room-backed queue, foreground service + WorkManager recovery, pause/resume/retry/cancel/delete, 1–3 parallel downloads, Wi-Fi-only, speed/ETA notifications, MediaStore publish (Android 10+), aria2 for direct media links, filters | 3 ✅ |
-| Player | Media3/ExoPlayer, YouTube streaming without an API key, quality/speed, PiP, background audio with MediaSession notification, history, favorites | 4 |
+| Player | Media3/ExoPlayer, NewPipeExtractor YouTube streaming without an API key, quality/speed pickers, video-only+audio merging, PiP, audio-only mode with MediaSession background playback, resume positions, history, favorites, in-player download button, offline playback of completed downloads | 4 ✅ |
 | Browser | Tabbed WebView (swappable interface), popular-site grid, floating download button, EasyList/EasyPrivacy/uBlock adblock with per-site allowlist | 5 |
 | VPN | VpnService + WireGuard/Outline, import your own configs/keys/subscriptions, split tunneling, kill switch. No bundled servers | 6 |
 | Release | Settings polish, crash handling, F-Droid + GitHub Releases | 7 |
@@ -30,11 +30,13 @@ Single Gradle module (`:app`), clean-architecture packages, unidirectional data 
 │   theme/       Raisoft charcoal/ember tokens, Montserrat │
 ├──────────────────────────────────────────────────────────┤
 │ domain/        pure Kotlin: models, LinkValidator,       │
-│                MediaFormatMapper (format selection)      │
+│                MediaFormatMapper, StreamOptionMapper     │
 ├──────────────────────────────────────────────────────────┤
 │ data/          settings (DataStore) ✅                    │
 │                download engine (yt-dlp + ffmpeg) ✅ P2    │
-│                db (Room: downloads) ✅ P3 · history P4    │
+│                db (Room: downloads ✅ P3, library ✅ P4)  │
+│                stream (NewPipeExtractor) ✅ P4            │
+│                playback (Media3 session service) ✅ P4    │
 │                browser + adblock — P5 · vpn — P6         │
 └──────────────────────────────────────────────────────────┘
         Hilt wires everything · coroutines/Flow throughout
@@ -72,6 +74,16 @@ Requirements: minSdk 26 (Android 8.0), targetSdk 34, Kotlin 2.0.21, AGP 8.5.2, G
 - Direct media links (`.mp4`, `.mkv`, `.mp3`, …) use the bundled aria2c as yt-dlp's external downloader for segmented downloads; site pages use yt-dlp's native downloader.
 - WorkManager (`QueueRecoveryWorker`, network-constrained) plus startup recovery reset stale `RUNNING` rows to `QUEUED` after a process kill, so interrupted downloads resume automatically.
 
+## Player & library (Phase 4)
+
+- `StreamRepository` resolves playable URLs: YouTube links go through **NewPipeExtractor v0.27.1** (no API key) — progressive streams plus video-only streams paired with the best audio track; other http(s) links and local files play directly. Extraction runs on `Dispatchers.IO` with an OkHttp-backed `Downloader` (`NewPipe.init` at app startup).
+- `PlaybackService` is a `MediaSessionService` (`mediaPlayback` foreground type) owning the ExoPlayer instance, so playback survives the UI going away. The UI drives it through a `MediaController`; a custom `SET_MEDIA` session command lets the service build a `MergingMediaSource` (video-only + audio) which a plain `MediaItem` cannot express.
+- Quality picker lists every extracted resolution (highest first); switching keeps the current position. Speed picker: 0.5×–2×. Audio-only mode swaps to the best audio stream and keeps playing in the background with the system media notification (lock screen / Bluetooth controls via MediaSession).
+- Picture-in-picture: 16:9 mini player on devices that support it (Android 8+).
+- Library tab: **History** (last 100 plays, resume positions saved every 5 s and on pause), **Favorites**, and **Downloads** (completed files play offline in the same player). Thumbnails load with Coil. The player also has a Download button that queues the best-quality yt-dlp download of the current video.
+- A second Room database (`grabi-library.db`) holds history/favorites so the Phase 3 downloads schema stays untouched.
+- Core-library desugaring (`desugar_jdk_libs_nio`) is enabled for NewPipeExtractor's `java.time`/stream usage below API 33.
+
 ### Signing a release
 
 Releases build on tag push (`v*`) via `.github/workflows/release.yml`. Create a keystore **locally, never commit it**:
@@ -93,23 +105,23 @@ Add four repository secrets (Settings → Secrets and variables → Actions): `K
 | Navigation Compose | androidx | Apache-2.0 | Bottom-nav graph | Official, state-preserving tabs |
 | Hilt (+ KSP) | [google/dagger](https://github.com/google/dagger) | Apache-2.0 | DI | Official; KSP avoids heavy kapt |
 | DataStore | androidx | Apache-2.0 | Settings persistence | Official SharedPreferences replacement |
-| Room | androidx | Apache-2.0 | Download queue DB (P3 ✅), history/favorites (P4) | Official, Flow-native |
+| Room | androidx | Apache-2.0 | Download queue DB (P3 ✅), history/favorites (P4 ✅) | Official, Flow-native |
 | WorkManager | androidx | Apache-2.0 | Queue recovery after process death (P3 ✅) | Official, survives process death |
 | yt-dlp | [yt-dlp/yt-dlp](https://github.com/yt-dlp/yt-dlp) | Unlicense | Main download engine, 1000+ sites | De-facto standard, very active |
 | youtubedl-android | [yausername/youtubedl-android](https://github.com/yausername/youtubedl-android) | GPL-3.0 | Bundles yt-dlp + Python for Android; optional ffmpeg/aria2c artifacts | Powers Seal/dvd; now on Maven Central as `io.github.junkfood02.youtubedl-android:0.18.1` |
-| NewPipeExtractor | [TeamNewPipe/NewPipeExtractor](https://github.com/TeamNewPipe/NewPipeExtractor) | GPL-3.0-or-later | YouTube extraction/streaming without API key (P2/P4) | Battle-tested in NewPipe, active |
+| NewPipeExtractor | [TeamNewPipe/NewPipeExtractor](https://github.com/TeamNewPipe/NewPipeExtractor) | GPL-3.0-or-later | YouTube extraction/streaming without API key (P4 ✅) | Battle-tested in NewPipe, active |
 | aria2 | [aria2/aria2](https://github.com/aria2/aria2) | GPL-2.0-or-later | Segmented direct-link downloads (P3 ✅, via youtubedl-android artifact) | Fast multi-connection downloader |
 | FFmpeg | [FFmpeg/FFmpeg](https://github.com/FFmpeg/FFmpeg) | LGPL-2.1+ (build-dependent) | Muxing/remux to mp4/mp3 (P2, via youtubedl-android artifact) | Standard media toolchain |
-| Media3/ExoPlayer | [androidx/media](https://github.com/androidx/media) | Apache-2.0 | Player, MediaSession, PiP (P4) | Official ExoPlayer successor |
-| OkHttp | [square/okhttp](https://github.com/square/okhttp) | Apache-2.0 | HTTP for filter lists/updates (P5) | Lean, maintained |
-| Coil | [coil-kt/coil](https://github.com/coil-kt/coil) | Apache-2.0 | Thumbnails (P3–4) | Kotlin-first, Compose-native |
+| Media3/ExoPlayer | [androidx/media](https://github.com/androidx/media) | Apache-2.0 | Player, MediaSession, PiP (P4 ✅) | Official ExoPlayer successor |
+| OkHttp | [square/okhttp](https://github.com/square/okhttp) | Apache-2.0 | Extractor HTTP (P4 ✅), filter lists/updates (P5) | Lean, maintained |
+| Coil | [coil-kt/coil](https://github.com/coil-kt/coil) | Apache-2.0 | Thumbnails (P4 ✅) | Kotlin-first, Compose-native |
 | adblock-rust *(optional upgrade)* | [brave/adblock-rust](https://github.com/brave/adblock-rust) | MPL-2.0 | High-performance filter engine (P5) | Brave-maintained; P5 starts with a lean Kotlin ABP parser, upgrade path if needed |
 | wireguard-android | [WireGuard/wireguard-android](https://github.com/WireGuard/wireguard-android) | Apache-2.0 | Tunnel library + wireguard-go (MIT) backend (P6) | Official, embeddable tunnel |
 | Outline SDK *(pluggable provider)* | [Jigsaw-Code/outline-sdk](https://github.com/Jigsaw-Code/outline-sdk) | Apache-2.0 | Outline key support (P6) | Maintained by Jigsaw/Google |
 | Montserrat font | [JulietaUla/Montserrat](https://github.com/JulietaUla/Montserrat) | SIL OFL 1.1 | Brand typography | Raisoft brand font, OFL embeddable |
 | JUnit 4 | [junit-team/junit4](https://github.com/junit-team/junit4) | EPL-1.0 | Unit tests (test-only) | Standard |
 
-**Maintenance flags:** youtubedl-android moved from JitPack (`com.github.yausername`) to Maven Central under `io.github.junkfood02.youtubedl-android` (Seal's author). The old JitPack coordinates are stale — use the new ones. NewPipeExtractor needs core-library desugaring (`desugar_jdk_libs_nio`) below API 33; that gets added in Phase 4 with the player. Versions in `gradle/libs.versions.toml` are pinned to verified-stable releases; Dependabot proposes weekly bumps.
+**Maintenance flags:** youtubedl-android moved from JitPack (`com.github.yausername`) to Maven Central under `io.github.junkfood02.youtubedl-android` (Seal's author). The old JitPack coordinates are stale — use the new ones. NewPipeExtractor ships via JitPack (`com.github.TeamNewPipe:NewPipeExtractor:v0.27.1`) and needs core-library desugaring (`desugar_jdk_libs_nio`, enabled in P4) below API 33. Versions in `gradle/libs.versions.toml` are pinned to verified-stable releases; Dependabot proposes weekly bumps.
 
 ## License
 
@@ -140,6 +152,7 @@ Practical consequence: anyone distributing a modified Grabi must publish their s
 - **DRM/EME:** WebView cannot play or download DRM-protected streams (Netflix etc.).
 - **Scoped storage:** Android 10+ publishes finished files to MediaStore (`Movies/Grabi`, `Music/Grabi`); Android 8–9 keeps them in the app-specific external dir (uninstall deletes them). SAF picker export is a possible later addition.
 - **Background limits:** Android 12+ blocks foreground-service starts from the background; if the OS kills the app mid-download, the queue resumes on next launch (WorkManager + startup recovery). Pause/resume restarts the yt-dlp process and continues the `.part` file rather than freezing it in place.
+- **Player:** YouTube stream URLs are session-bound and expire; a stale history entry may need a re-resolve (Retry). PiP shows the whole player screen scaled down (controls included) rather than a video-only surface. Audio-only background playback relies on the media notification; some OEM battery killers still stop it.
 - **VPN:** user-supplied configs only; no bundled servers. Kill switch and split tunneling are best-effort on Android (always-on VPN is a system setting).
 - **GPL obligations:** distributing binaries requires offering source.
 - **Low-end devices:** Python+yt-dlp startup is heavy; engine init is lazy and off the main thread (P2).
