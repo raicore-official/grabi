@@ -328,14 +328,14 @@ private fun FeedCard(
                     .aspectRatio(16f / 9f)
                     .background(MaterialTheme.colorScheme.surfaceVariant),
             ) {
-                if (item.thumbnailUrl != null) {
-                    AsyncImage(
-                        model = item.thumbnailUrl,
-                        contentDescription = null,
-                        contentScale = ContentScale.Crop,
-                        modifier = Modifier.fillMaxSize(),
-                    )
-                }
+                AsyncImage(
+                    model = item.thumbnailUrl ?: R.drawable.grabi_home_thumbnail,
+                    contentDescription = null,
+                    contentScale = ContentScale.Crop,
+                    modifier = Modifier.fillMaxSize(),
+                    placeholder = painterResource(R.drawable.grabi_home_thumbnail),
+                    error = painterResource(R.drawable.grabi_home_thumbnail),
+                )
                 Row(
                     modifier = Modifier
                         .align(Alignment.BottomStart)
