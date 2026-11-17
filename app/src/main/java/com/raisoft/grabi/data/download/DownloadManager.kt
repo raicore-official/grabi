@@ -52,6 +52,7 @@ class DownloadManager @Inject constructor(
 ) {
     private val scope = CoroutineScope(SupervisorJob() + Dispatchers.Default)
     private val pumpMutex = Mutex()
+    private val enqueueMutex = Mutex()
     private val activeJobs = ConcurrentHashMap<String, Job>()
     private val pauseRequested = ConcurrentHashMap.newKeySet<String>()
     private val lastPercent = ConcurrentHashMap<String, Int>()
@@ -83,30 +84,42 @@ class DownloadManager @Inject constructor(
         subtitles: Boolean,
         videoId: String = VideoIds.of(url),
     ): String {
-        val id = UUID.randomUUID().toString()
-        dao.upsert(
-            DownloadEntity(
-                id = id,
-                url = url,
-                videoId = videoId,
-                title = title,
-                optionLabel = option.label,
-                kind = option.kind.name,
-                formatSelector = option.formatSelector,
-                audioFormat = option.audioFormat,
-                subtitles = subtitles,
-                status = DownloadStatus.QUEUED.name,
-                progress = 0f,
-                speed = null,
-                etaSeconds = -1,
-                filePath = null,
-                contentUri = null,
-                error = null,
-                createdAt = System.currentTimeMillis(),
-            ),
-        )
-        pump()
-        return id
+        return enqueueMutex.withLock {
+            val existing = dao.latestByVideoId(videoId, option.kind.name)
+            if (existing != null) {
+                val reusable = existing.status in setOf(
+                    DownloadStatus.QUEUED.name,
+                    DownloadStatus.RUNNING.name,
+                    DownloadStatus.PAUSED.name,
+                    DownloadStatus.WAITING_WIFI.name,
+                ) || (existing.status == DownloadStatus.DONE.name && fileExists(existing))
+                if (reusable) return@withLock existing.id
+            }
+            val id = UUID.randomUUID().toString()
+            dao.upsert(
+                DownloadEntity(
+                    id = id,
+                    url = url,
+                    videoId = videoId,
+                    title = title,
+                    optionLabel = option.label,
+                    kind = option.kind.name,
+                    formatSelector = option.formatSelector,
+                    audioFormat = option.audioFormat,
+                    subtitles = subtitles,
+                    status = DownloadStatus.QUEUED.name,
+                    progress = 0f,
+                    speed = null,
+                    etaSeconds = -1,
+                    filePath = null,
+                    contentUri = null,
+                    error = null,
+                    createdAt = System.currentTimeMillis(),
+                ),
+            )
+            pump()
+            id
+        }
     }
 
     fun pause(id: String) {

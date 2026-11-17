@@ -380,6 +380,27 @@ class PlayerViewModel @Inject constructor(
     }
 
     fun download() {
+        val existing = downloadState.value
+        if (existing != null && (
+            existing.status in setOf(
+                DownloadStatus.QUEUED.name,
+                DownloadStatus.RUNNING.name,
+                DownloadStatus.PAUSED.name,
+                DownloadStatus.WAITING_WIFI.name,
+            ) || (existing.status == DownloadStatus.DONE.name &&
+                downloadManager.fileExists(existing))
+        )) {
+            _ui.update {
+                it.copy(
+                    notice = if (existing.status == DownloadStatus.DONE.name) {
+                        "Already downloaded"
+                    } else {
+                        "Download already in progress"
+                    },
+                )
+            }
+            return
+        }
         val title = _ui.value.info?.title ?: fallbackTitle
         val label = _ui.value.info?.videoOptions
             ?.firstOrNull { it.id == _ui.value.selectedVideoId }?.label ?: "Best"
