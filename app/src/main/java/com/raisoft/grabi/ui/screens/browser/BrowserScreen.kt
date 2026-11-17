@@ -3,6 +3,7 @@ package com.raisoft.grabi.ui.screens.browser
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.background
+import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.isSystemInDarkTheme
 import androidx.compose.foundation.layout.Arrangement
@@ -17,6 +18,7 @@ import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.layout.systemBarsPadding
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.grid.GridCells
 import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
@@ -162,7 +164,14 @@ fun BrowserScreen(
     }
     val siteAllowlisted = activeHost != null && activeHost in settings.adblockAllowlist
 
-    Box(Modifier.fillMaxSize()) {
+    Box(
+        modifier = Modifier
+            .fillMaxSize()
+            .systemBarsPadding()
+            .border(1.dp, MaterialTheme.colorScheme.outlineVariant, RoundedCornerShape(18.dp))
+            .clip(RoundedCornerShape(18.dp)),
+        contentAlignment = Alignment.TopStart,
+    ) {
         Column(Modifier.fillMaxSize()) {
             Row(
                 modifier = Modifier
@@ -331,7 +340,10 @@ fun BrowserScreen(
                     key(tab.id) {
                         AndroidView(
                             factory = { engine.view },
-                            modifier = Modifier.fillMaxWidth().weight(1f),
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .weight(1f)
+                                .clip(RoundedCornerShape(bottomStart = 18.dp, bottomEnd = 18.dp)),
                         )
                     }
                     Surface(

@@ -473,20 +473,30 @@ class PlayerViewModel @Inject constructor(
         info: StreamInfo? = _ui.value.info,
     ) {
         val controller = _controller.value ?: return
-        controller.sendCustomCommand(
-            SessionCommand(PlaybackService.ACTION_SET_MEDIA, Bundle.EMPTY),
-            bundleOf(
-                PlaybackService.KEY_VIDEO_URL to videoUrl,
-                PlaybackService.KEY_AUDIO_URL to audioUrl,
-                PlaybackService.KEY_POSITION_MS to positionMs,
-                PlaybackService.KEY_SUBTITLE_URL to info?.subtitleUrl,
-                PlaybackService.KEY_SUBTITLE_LANGUAGE to info?.subtitleLanguage,
-                PlaybackService.KEY_MEDIA_ID to "${videoUrl.orEmpty()}|${audioUrl.orEmpty()}",
-                PlaybackService.KEY_PAGE_URL to url,
-                PlaybackService.KEY_TITLE to (info?.title ?: fallbackTitle).toString(),
-            ),
-        )
-        controller.playWhenReady = true
+        runCatching {
+            controller.sendCustomCommand(
+                SessionCommand(PlaybackService.ACTION_SET_MEDIA, Bundle.EMPTY),
+                bundleOf(
+                    PlaybackService.KEY_VIDEO_URL to videoUrl,
+                    PlaybackService.KEY_AUDIO_URL to audioUrl,
+                    PlaybackService.KEY_POSITION_MS to positionMs,
+                    PlaybackService.KEY_SUBTITLE_URL to info?.subtitleUrl,
+                    PlaybackService.KEY_SUBTITLE_LANGUAGE to info?.subtitleLanguage,
+                    PlaybackService.KEY_MEDIA_ID to "${videoUrl.orEmpty()}|${audioUrl.orEmpty()}",
+                    PlaybackService.KEY_PAGE_URL to url,
+                    PlaybackService.KEY_TITLE to (info?.title ?: fallbackTitle).toString(),
+                ),
+            )
+            controller.playWhenReady = true
+        }.onFailure { error ->
+            DebugLog.line("media command failed ${error.message}")
+            _ui.update {
+                it.copy(
+                    buffering = false,
+                    error = error.message ?: "Unable to start playback",
+                )
+            }
+        }
     }
 
     override fun onCleared() {

@@ -42,6 +42,7 @@ fun GrabiApp(pendingLink: PendingLink, pendingNav: PendingNav) {
     val backStackEntry by navController.currentBackStackEntryAsState()
     val currentRoute = backStackEntry?.destination?.route
     val showBottomBar = currentRoute?.startsWith("player") != true &&
+        currentRoute?.startsWith("browser") != true &&
         currentRoute != "vpn" &&
         currentRoute != "autobot" &&
         currentRoute != "vpnbook-handoff"

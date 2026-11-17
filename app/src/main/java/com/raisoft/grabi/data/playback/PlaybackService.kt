@@ -165,19 +165,27 @@ class PlaybackService : MediaSessionService() {
                     player.playbackState != Player.STATE_IDLE &&
                     player.playbackState != Player.STATE_ENDED
                 if (!alreadyActive) {
-                    val source = buildMediaSource(
-                        videoUrl = args.getString(KEY_VIDEO_URL),
-                        audioUrl = args.getString(KEY_AUDIO_URL),
-                        subtitleUrl = args.getString(KEY_SUBTITLE_URL),
-                        subtitleLanguage = args.getString(KEY_SUBTITLE_LANGUAGE),
-                        title = args.getString(KEY_TITLE),
-                    )
+                    val source = runCatching {
+                        buildMediaSource(
+                            videoUrl = args.getString(KEY_VIDEO_URL),
+                            audioUrl = args.getString(KEY_AUDIO_URL),
+                            subtitleUrl = args.getString(KEY_SUBTITLE_URL),
+                            subtitleLanguage = args.getString(KEY_SUBTITLE_LANGUAGE),
+                            title = args.getString(KEY_TITLE),
+                        )
+                    }.onFailure { error ->
+                        DebugLog.line("source build failed ${error.message}")
+                    }.getOrNull()
                     if (source != null) {
-                        currentMediaId = mediaId
-                        currentPageUrl = args.getString(KEY_PAGE_URL)
-                        player.stop()
-                        player.setMediaSource(source, args.getLong(KEY_POSITION_MS, 0L))
-                        player.prepare()
+                        runCatching {
+                            player.stop()
+                            player.setMediaSource(source, args.getLong(KEY_POSITION_MS, 0L))
+                            player.prepare()
+                            currentMediaId = mediaId
+                            currentPageUrl = args.getString(KEY_PAGE_URL)
+                        }.onFailure { error ->
+                            DebugLog.line("source prepare failed ${error.message}")
+                        }
                     }
                 }
                 return Futures.immediateFuture(SessionResult(SessionResult.RESULT_SUCCESS))
