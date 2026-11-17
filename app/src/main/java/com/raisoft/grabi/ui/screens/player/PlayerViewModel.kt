@@ -418,6 +418,7 @@ class PlayerViewModel @Inject constructor(
                 ),
                 subtitles = false,
                 videoId = videoId,
+                thumbnailUrl = _ui.value.info?.thumbnailUrl ?: _ui.value.thumbnailUrl,
             )
             _ui.update { it.copy(notice = "Download queued") }
         }
