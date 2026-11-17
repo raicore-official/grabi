@@ -130,21 +130,31 @@ class VpnRepository @Inject constructor(
         }
     }
 
-    fun disconnect() {
-        scope.launch {
-            userDisconnect = true
-            connectJob?.cancel()
-            statsJob?.cancel()
-            _connection.update { it.copy(status = VpnStatus.DISCONNECTING) }
-            tunnel?.let { runCatching { backend.disconnect(it) } }
-            blockTunnel?.let { runCatching { backend.disconnect(it) } }
-            tunnel = null
-            blockTunnel = null
-            activeEntry = null
-            prefs.setLastConnected("")
-            _connection.value = VpnConnectionState()
-            refreshSystemVpn()
+    fun disconnect(): Job = scope.launch {
+        userDisconnect = true
+        connectJob?.cancel()
+        statsJob?.cancel()
+        _connection.update { it.copy(status = VpnStatus.DISCONNECTING) }
+        tunnel?.let { runCatching { backend.disconnect(it) } }
+        blockTunnel?.let { runCatching { backend.disconnect(it) } }
+        tunnel = null
+        blockTunnel = null
+        activeEntry = null
+        prefs.setLastConnected("")
+        _connection.value = VpnConnectionState()
+        refreshSystemVpn()
+    }
+
+    suspend fun engageProtection(): Boolean {
+        val engaged = engageBlackhole()
+        if (engaged) {
+            _connection.value = VpnConnectionState(
+                status = VpnStatus.BLOCKED,
+                activeName = activeEntry?.name,
+                error = "protection",
+            )
         }
+        return engaged
     }
 
     fun setKillSwitch(enabled: Boolean) {

@@ -45,7 +45,7 @@ class HomeViewModel @Inject constructor(
             .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), emptyMap())
 
     fun pauseResumeDownload(id: String) {
-        val entity = downloadStates.values.firstOrNull { it.id == id } ?: return
+        val entity = downloadStates.value.values.firstOrNull { it.id == id } ?: return
         if (entity.status == DownloadStatus.PAUSED.name) {
             downloadManager.resume(id)
         } else {

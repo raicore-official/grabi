@@ -19,17 +19,21 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
 import androidx.core.content.ContextCompat
 import androidx.lifecycle.lifecycleScope
+import com.raisoft.grabi.data.PendingNav
 import com.raisoft.grabi.data.download.DownloadManager
 import com.raisoft.grabi.data.download.PendingLink
 import com.raisoft.grabi.data.settings.SettingsRepository
 import com.raisoft.grabi.data.settings.ThemeMode
 import com.raisoft.grabi.domain.LinkValidator
 import com.raisoft.grabi.ui.GrabiApp
+import com.raisoft.grabi.ui.screens.onboarding.OnboardingScreen
+import com.raisoft.grabi.ui.screens.splash.SplashScreen
 import com.raisoft.grabi.ui.theme.GrabiTheme
 import com.raisoft.grabi.ui.theme.SystemBarSync
 import com.raisoft.grabi.ui.theme.resolveDark
 import dagger.hilt.android.AndroidEntryPoint
 import javax.inject.Inject
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.runBlocking
@@ -38,6 +42,7 @@ import kotlinx.coroutines.runBlocking
 class MainActivity : AppCompatActivity() {
 
     @Inject lateinit var pendingLink: PendingLink
+    @Inject lateinit var pendingNav: PendingNav
     @Inject lateinit var downloadManager: DownloadManager
     @Inject lateinit var settingsRepository: SettingsRepository
 
@@ -65,6 +70,12 @@ class MainActivity : AppCompatActivity() {
         }
         var themeMode by mutableStateOf(initial.themeMode)
         var dynamicColor by mutableStateOf(initial.dynamicColor)
+        var ready by mutableStateOf(false)
+        var showOnboarding by mutableStateOf(!initial.onboardingCompleted)
+        lifecycleScope.launch {
+            delay(600)
+            ready = true
+        }
         lifecycleScope.launch {
             settingsRepository.settings.collect { settings ->
                 themeMode = settings.themeMode
@@ -78,7 +89,11 @@ class MainActivity : AppCompatActivity() {
                 dynamicColor = dynamicColor,
             ) {
                 SystemBarSync(themeMode.resolveDark(isSystemInDarkTheme()))
-                GrabiApp(pendingLink = pendingLink)
+                when {
+                    !ready -> SplashScreen()
+                    showOnboarding -> OnboardingScreen(onDone = { showOnboarding = false })
+                    else -> GrabiApp(pendingLink = pendingLink, pendingNav = pendingNav)
+                }
             }
         }
     }
@@ -97,6 +112,7 @@ class MainActivity : AppCompatActivity() {
         if (intent == null) return
         intent.getStringExtra(EXTRA_RETRY_ID)?.let(downloadManager::retry)
         intent.getStringExtra(EXTRA_RESUME_ID)?.let(downloadManager::resume)
+        intent.getStringExtra(EXTRA_OPEN_ROUTE)?.let(pendingNav::offer)
         if (intent.action == Intent.ACTION_SEND) {
             val text = intent.getStringExtra(Intent.EXTRA_TEXT) ?: return
             LinkValidator.extractUrl(text)?.let { pendingLink.offer(it) }
@@ -106,6 +122,7 @@ class MainActivity : AppCompatActivity() {
     companion object {
         const val EXTRA_RETRY_ID = "grabi_retry_id"
         const val EXTRA_RESUME_ID = "grabi_resume_id"
+        const val EXTRA_OPEN_ROUTE = "grabi_open_route"
     }
 }
 

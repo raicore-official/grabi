@@ -11,4 +11,5 @@ data class UserSettings(
     val adblockEnabled: Boolean = true,
     val adblockAllowlist: Set<String> = emptySet(),
     val adblockLastUpdated: Long = 0L,
+    val onboardingCompleted: Boolean = false,
 )

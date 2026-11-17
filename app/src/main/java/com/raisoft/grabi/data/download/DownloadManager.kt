@@ -130,6 +130,18 @@ class DownloadManager @Inject constructor(
         }
     }
 
+    fun pauseAll() {
+        downloads.value
+            .filter { it.status == DownloadStatus.RUNNING.name || it.status == DownloadStatus.QUEUED.name }
+            .forEach { pause(it.id) }
+    }
+
+    fun resumeAll() {
+        downloads.value
+            .filter { it.status == DownloadStatus.PAUSED.name }
+            .forEach { resume(it.id) }
+    }
+
     fun retry(id: String) {
         pauseRequested.remove(id)
         scope.launch {

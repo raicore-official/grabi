@@ -86,17 +86,39 @@ class DownloadNotifier @Inject constructor(
         )
     }
 
-    fun summary(activeCount: Int): Notification =
-        NotificationCompat.Builder(context, CHANNEL_ID)
+    fun summary(activeCount: Int, pausedCount: Int = 0): Notification {
+        val text = if (activeCount > 0) {
+            "Downloading $activeCount item${if (activeCount == 1) "" else "s"}"
+        } else {
+            "$pausedCount download${if (pausedCount == 1) "" else "s"} paused"
+        }
+        val builder = NotificationCompat.Builder(context, CHANNEL_ID)
             .setSmallIcon(R.drawable.ic_notification)
             .setContentTitle("Grabi")
-            .setContentText("Downloading $activeCount item${if (activeCount == 1) "" else "s"}")
+            .setContentText(text)
             .setOngoing(true)
             .setOnlyAlertOnce(true)
-            .build()
+            .setContentIntent(openAppIntent())
+            .addAction(0, context.getString(R.string.notif_open_app), openAppIntent())
+        if (activeCount > 0) {
+            builder.addAction(
+                0,
+                context.getString(R.string.notif_pause_all),
+                bulkAction(DownloadService.ACTION_PAUSE_ALL),
+            )
+        }
+        if (pausedCount > 0) {
+            builder.addAction(
+                0,
+                context.getString(R.string.notif_resume_all),
+                bulkAction(DownloadService.ACTION_RESUME_ALL),
+            )
+        }
+        return builder.build()
+    }
 
-    fun updateSummary(activeCount: Int) {
-        notifications.notify(DownloadService.SUMMARY_ID, summary(activeCount))
+    fun updateSummary(activeCount: Int, pausedCount: Int = 0) {
+        notifications.notify(DownloadService.SUMMARY_ID, summary(activeCount, pausedCount))
     }
 
     fun cancel(id: String) {
@@ -122,6 +144,22 @@ class DownloadNotifier @Inject constructor(
             context,
             id.hashCode() xor extraKey.hashCode(),
             Intent(context, MainActivity::class.java).putExtra(extraKey, id),
+            PendingIntent.FLAG_IMMUTABLE or PendingIntent.FLAG_UPDATE_CURRENT,
+        )
+
+    private fun openAppIntent(): PendingIntent =
+        PendingIntent.getActivity(
+            context,
+            0,
+            Intent(context, MainActivity::class.java),
+            PendingIntent.FLAG_IMMUTABLE or PendingIntent.FLAG_UPDATE_CURRENT,
+        )
+
+    private fun bulkAction(action: String): PendingIntent =
+        PendingIntent.getService(
+            context,
+            action.hashCode(),
+            Intent(context, DownloadService::class.java).setAction(action),
             PendingIntent.FLAG_IMMUTABLE or PendingIntent.FLAG_UPDATE_CURRENT,
         )
 

@@ -28,6 +28,7 @@ class SettingsRepository @Inject constructor(
     private val adblockEnabledKey = booleanPreferencesKey("adblock_enabled")
     private val adblockAllowlistKey = stringSetPreferencesKey("adblock_allowlist")
     private val adblockLastUpdatedKey = longPreferencesKey("adblock_last_updated")
+    private val onboardingCompletedKey = booleanPreferencesKey("onboarding_completed")
 
     val settings: Flow<UserSettings> = context.settingsDataStore.data.map { preferences ->
         UserSettings(
@@ -41,6 +42,7 @@ class SettingsRepository @Inject constructor(
             adblockEnabled = preferences[adblockEnabledKey] ?: true,
             adblockAllowlist = preferences[adblockAllowlistKey] ?: emptySet(),
             adblockLastUpdated = preferences[adblockLastUpdatedKey] ?: 0L,
+            onboardingCompleted = preferences[onboardingCompletedKey] ?: false,
         )
     }
 
@@ -77,5 +79,9 @@ class SettingsRepository @Inject constructor(
 
     suspend fun setAdblockLastUpdated(timestamp: Long) {
         context.settingsDataStore.edit { it[adblockLastUpdatedKey] = timestamp }
+    }
+
+    suspend fun setOnboardingCompleted(completed: Boolean) {
+        context.settingsDataStore.edit { it[onboardingCompletedKey] = completed }
     }
 }

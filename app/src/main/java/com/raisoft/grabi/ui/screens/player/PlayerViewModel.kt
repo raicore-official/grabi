@@ -460,13 +460,14 @@ class PlayerViewModel @Inject constructor(
                 PlaybackService.KEY_POSITION_MS to positionMs,
                 PlaybackService.KEY_SUBTITLE_URL to info?.subtitleUrl,
                 PlaybackService.KEY_SUBTITLE_LANGUAGE to info?.subtitleLanguage,
+                PlaybackService.KEY_MEDIA_ID to "${videoUrl.orEmpty()}|${audioUrl.orEmpty()}",
+                PlaybackService.KEY_PAGE_URL to url,
             ),
         )
         controller.playWhenReady = true
     }
 
     override fun onCleared() {
-        savePosition()
         _controller.value?.removeListener(playerListener)
         _controller.value?.release()
         _controller.value = null

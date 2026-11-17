@@ -1,5 +1,10 @@
 package com.raisoft.grabi.ui.screens.home
 
+import android.app.Activity
+import android.content.Intent
+import android.speech.RecognizerIntent
+import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.horizontalScroll
@@ -25,6 +30,9 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.rounded.Close
 import androidx.compose.material.icons.rounded.Download
 import androidx.compose.material.icons.rounded.Check
+import androidx.compose.material.icons.rounded.Mic
+import androidx.compose.ui.platform.LocalContext
+import java.util.Locale
 import androidx.compose.foundation.combinedClickable
 import androidx.compose.material3.CircularProgressIndicator
 import com.raisoft.grabi.data.db.DownloadEntity
@@ -89,6 +97,20 @@ fun HomeScreen(
     val feed by viewModel.feed.collectAsStateWithLifecycle()
     val downloadStates by viewModel.downloadStates.collectAsStateWithLifecycle()
     var searchInput by remember { mutableStateOf("") }
+    val context = LocalContext.current
+    val voiceLauncher = rememberLauncherForActivityResult(
+        ActivityResultContracts.StartActivityForResult(),
+    ) { result ->
+        if (result.resultCode == Activity.RESULT_OK) {
+            val spoken = result.data
+                ?.getStringArrayListExtra(RecognizerIntent.EXTRA_RESULTS)
+                ?.firstOrNull()
+            if (!spoken.isNullOrBlank()) {
+                searchInput = spoken
+                viewModel.search(spoken)
+            }
+        }
+    }
 
     LazyColumn(
         modifier = Modifier.fillMaxSize(),
@@ -114,12 +136,35 @@ fun HomeScreen(
                     ),
                     leadingIcon = { Icon(Icons.Rounded.Search, null) },
                     trailingIcon = {
-                        if (searchInput.isNotEmpty()) {
-                            IconButton(onClick = { searchInput = "" }) {
+                        Row {
+                            IconButton(
+                                onClick = {
+                                    val intent = Intent(RecognizerIntent.ACTION_RECOGNIZE_SPEECH).apply {
+                                        putExtra(
+                                            RecognizerIntent.EXTRA_LANGUAGE_MODEL,
+                                            RecognizerIntent.LANGUAGE_MODEL_FREE_FORM,
+                                        )
+                                        putExtra(RecognizerIntent.EXTRA_LANGUAGE, Locale.getDefault())
+                                        putExtra(
+                                            RecognizerIntent.EXTRA_PROMPT,
+                                            context.getString(R.string.voice_search_prompt),
+                                        )
+                                    }
+                                    runCatching { voiceLauncher.launch(intent) }
+                                },
+                            ) {
                                 Icon(
-                                    imageVector = Icons.Rounded.Close,
-                                    contentDescription = stringResource(R.string.action_clear),
+                                    imageVector = Icons.Rounded.Mic,
+                                    contentDescription = stringResource(R.string.home_voice_search),
                                 )
+                            }
+                            if (searchInput.isNotEmpty()) {
+                                IconButton(onClick = { searchInput = "" }) {
+                                    Icon(
+                                        imageVector = Icons.Rounded.Close,
+                                        contentDescription = stringResource(R.string.action_clear),
+                                    )
+                                }
                             }
                         }
                     },

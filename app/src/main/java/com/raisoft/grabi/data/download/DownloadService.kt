@@ -37,6 +37,8 @@ class DownloadService : Service() {
             ACTION_PAUSE -> id?.let(manager::pause)
             ACTION_CANCEL -> id?.let(manager::cancel)
             ACTION_DISMISS -> id?.let(notifier::cancel)
+            ACTION_PAUSE_ALL -> manager.pauseAll()
+            ACTION_RESUME_ALL -> manager.resumeAll()
         }
         observeQueue()
         return START_STICKY
@@ -50,12 +52,13 @@ class DownloadService : Service() {
                 val active = list.count {
                     it.status == DownloadStatus.RUNNING.name || it.status == DownloadStatus.QUEUED.name
                 }
-                if (active == 0) {
+                val paused = list.count { it.status == DownloadStatus.PAUSED.name }
+                if (active == 0 && paused == 0) {
                     observing = false
                     ServiceCompat.stopForeground(this@DownloadService, ServiceCompat.STOP_FOREGROUND_REMOVE)
                     stopSelf()
                 } else {
-                    notifier.updateSummary(active)
+                    notifier.updateSummary(active, paused)
                 }
             }
         }
@@ -72,5 +75,7 @@ class DownloadService : Service() {
         const val ACTION_PAUSE = "com.raisoft.grabi.action.PAUSE"
         const val ACTION_CANCEL = "com.raisoft.grabi.action.CANCEL"
         const val ACTION_DISMISS = "com.raisoft.grabi.action.DISMISS"
+        const val ACTION_PAUSE_ALL = "com.raisoft.grabi.action.PAUSE_ALL"
+        const val ACTION_RESUME_ALL = "com.raisoft.grabi.action.RESUME_ALL"
     }
 }

@@ -6,6 +6,7 @@ import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.aspectRatio
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
@@ -38,6 +39,8 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
+import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalClipboardManager
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.input.ImeAction
@@ -45,6 +48,7 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import coil.compose.AsyncImage
 import com.raisoft.grabi.R
 import com.raisoft.grabi.data.db.DownloadEntity
 import com.raisoft.grabi.domain.model.DownloadStatus
@@ -155,6 +159,24 @@ fun GrabScreen(viewModel: GrabViewModel = hiltViewModel()) {
                             modifier = Modifier.padding(16.dp),
                             verticalArrangement = Arrangement.spacedBy(10.dp),
                         ) {
+                            val selectedKind = info.options
+                                .firstOrNull { it.id == ui.selectedOptionId }?.kind
+                            val previewUrl = if (selectedKind == MediaKind.IMAGE) {
+                                ui.link
+                            } else {
+                                info.thumbnailUrl
+                            }
+                            if (!previewUrl.isNullOrBlank()) {
+                                AsyncImage(
+                                    model = previewUrl,
+                                    contentDescription = null,
+                                    contentScale = ContentScale.Crop,
+                                    modifier = Modifier
+                                        .fillMaxWidth()
+                                        .aspectRatio(16f / 9f)
+                                        .clip(RoundedCornerShape(12.dp)),
+                                )
+                            }
                             Text(
                                 text = info.title,
                                 style = MaterialTheme.typography.titleMedium,
