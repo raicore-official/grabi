@@ -1,19 +1,7 @@
 <?xml version="1.0" encoding="utf-8"?>
-<vector xmlns:android="http://schemas.android.com/apk/res/android"
-    android:width="108dp"
-    android:height="108dp"
-    android:viewportWidth="108"
-    android:viewportHeight="108">
-    <group
-        android:scaleX="2.2"
-        android:scaleY="2.2"
-        android:translateX="27.6"
-        android:translateY="27.6">
-        <path
-            android:fillColor="#FF6A2B"
-            android:pathData="M12,16l-5,-5h3V4h4v7h3l-5,5z" />
-        <path
-            android:fillColor="#FFFFFF"
-            android:pathData="M5,18h14v2H5z" />
-    </group>
-</vector>
+<inset xmlns:android="http://schemas.android.com/apk/res/android"
+    android:inset="19%">
+    <bitmap
+        android:gravity="fill"
+        android:src="@drawable/grabi_logo" />
+</inset>
