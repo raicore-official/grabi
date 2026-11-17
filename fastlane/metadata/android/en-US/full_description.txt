@@ -1,0 +1,27 @@
+Grabi is an open-source, ad-free media toolbox for Android: a multi-site video downloader, a built-in player, a tabbed browser with ad blocking, and a WireGuard VPN. No ads, no tracking, no API keys.
+
+Downloader
+- Downloads from 1000+ sites via yt-dlp, auto-updated in the background
+- Paste a link or share it to Grabi from any app
+- Format picker from 144p to 4K, plus MP3/M4A/Opus audio extraction and subtitles
+- Persistent queue with pause/resume/retry, 1-3 parallel downloads, Wi-Fi-only mode
+- Progress notifications with speed and ETA; finished files land in Movies/Grabi or Music/Grabi (Android 10+)
+
+Player and library
+- YouTube streaming without an API key (NewPipeExtractor)
+- Quality and speed pickers, picture-in-picture, audio-only background playback with system media controls
+- History with resume positions, favorites, offline playback of completed downloads
+
+Browser
+- Tabs, incognito mode, popular-site grid, DuckDuckGo search
+- Detects downloadable videos, audio and images on any page
+- EasyList/EasyPrivacy/uBlock ad blocking with auto-update and per-site allowlist
+
+VPN
+- WireGuard via the official tunnel library, no root required
+- Import your own configs (paste, file or URL), or browse community configs organized by country
+- Handshake verification before reporting connected
+- Kill switch blocks traffic if the tunnel drops; per-app split tunneling
+- No servers or keys are bundled; community configs are clearly labeled untrusted
+
+Grabi is free software under GPL-3.0-or-later. Source code: https://github.com/raicore-official/grabi

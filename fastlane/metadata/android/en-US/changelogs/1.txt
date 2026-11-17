@@ -1,0 +1,1 @@
+First release (v0.1.0): yt-dlp downloader with format picker and persistent queue, Media3 player with YouTube streaming, PiP and background audio, tabbed browser with incognito, media detection and adblock, WireGuard VPN with country-organized config finder, handshake verification, kill switch and split tunneling, crash log capture and sharing.
