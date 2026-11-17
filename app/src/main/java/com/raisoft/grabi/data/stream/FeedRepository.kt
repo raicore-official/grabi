@@ -29,7 +29,7 @@ class FeedRepository @Inject constructor() {
 
     suspend fun search(query: String): List<FeedItem> = withContext(Dispatchers.IO) {
         val service = ServiceList.YouTube
-        val handler = service.searchLHFactory.fromQuery(query)
+        val handler = service.searchQHFactory.fromQuery(query)
         SearchInfo.getInfo(service, handler).relatedItems.map(::toFeedItem)
     }
 

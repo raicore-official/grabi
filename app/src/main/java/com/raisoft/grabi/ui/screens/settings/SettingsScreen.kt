@@ -83,10 +83,20 @@ fun SettingsScreen(onOpenVpn: () -> Unit = {}, viewModel: SettingsViewModel = hi
             null
         } else {
             runCatching {
-                DocumentsContract.getTreeDocumentDisplayName(
-                    context.contentResolver,
-                    Uri.parse(settings.downloadDestination),
+                val tree = Uri.parse(settings.downloadDestination)
+                val document = DocumentsContract.buildDocumentUriUsingTree(
+                    tree,
+                    DocumentsContract.getTreeDocumentId(tree),
                 )
+                context.contentResolver.query(
+                    document,
+                    arrayOf(DocumentsContract.Document.COLUMN_DISPLAY_NAME),
+                    null,
+                    null,
+                    null,
+                )?.use { cursor ->
+                    if (cursor.moveToFirst()) cursor.getString(0) else null
+                }
             }.getOrNull()
         }
     }
