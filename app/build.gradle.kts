@@ -101,6 +101,7 @@ dependencies {
     implementation(libs.coil.compose)
     implementation(libs.okhttp)
     implementation(libs.newpipe.extractor)
+    implementation(libs.wireguard.tunnel)
     coreLibraryDesugaring(libs.desugar.jdk.nio)
 
     testImplementation(libs.junit)

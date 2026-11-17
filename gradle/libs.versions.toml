@@ -19,6 +19,7 @@ coil = "2.7.0"
 okhttp = "4.12.0"
 desugar = "2.1.2"
 newpipe = "v0.27.1"
+wireguard = "1.0.20260102"
 junit = "4.13.2"
 
 [libraries]
@@ -53,6 +54,7 @@ coil-compose = { group = "io.coil-kt", name = "coil-compose", version.ref = "coi
 okhttp = { group = "com.squareup.okhttp3", name = "okhttp", version.ref = "okhttp" }
 desugar-jdk-nio = { group = "com.android.tools", name = "desugar_jdk_libs_nio", version.ref = "desugar" }
 newpipe-extractor = { group = "com.github.TeamNewPipe", name = "NewPipeExtractor", version.ref = "newpipe" }
+wireguard-tunnel = { group = "com.wireguard.android", name = "tunnel", version.ref = "wireguard" }
 junit = { group = "junit", name = "junit", version.ref = "junit" }
 
 [plugins]
