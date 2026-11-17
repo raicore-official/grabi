@@ -22,6 +22,7 @@ import java.util.concurrent.ConcurrentHashMap
 import javax.inject.Inject
 import javax.inject.Singleton
 import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.SupervisorJob
@@ -37,6 +38,7 @@ class DownloadManager @Inject constructor(
     @ApplicationContext private val context: Context,
     private val dao: DownloadDao,
     private val engine: YtDlpEngine,
+    private val directDownloader: DirectDownloader,
     private val notifier: DownloadNotifier,
     settingsRepository: SettingsRepository,
 ) {
@@ -94,6 +96,7 @@ class DownloadManager @Inject constructor(
         if (activeJobs.containsKey(id)) {
             pauseRequested.add(id)
             engine.cancel(id)
+            directDownloader.cancel(id)
         } else {
             scope.launch {
                 dao.setStatus(id, DownloadStatus.PAUSED.name)
@@ -121,6 +124,7 @@ class DownloadManager @Inject constructor(
     fun cancel(id: String) {
         if (activeJobs.containsKey(id)) {
             engine.cancel(id)
+            directDownloader.cancel(id)
         } else {
             scope.launch {
                 dao.setStatus(id, DownloadStatus.CANCELED.name)
@@ -132,7 +136,10 @@ class DownloadManager @Inject constructor(
     fun delete(id: String) {
         scope.launch {
             val entity = dao.byId(id) ?: return@launch
-            if (activeJobs.containsKey(id)) engine.cancel(id)
+            if (activeJobs.containsKey(id)) {
+                engine.cancel(id)
+                directDownloader.cancel(id)
+            }
             entity.contentUri?.let {
                 runCatching { context.contentResolver.delete(Uri.parse(it), null, null) }
             }
@@ -177,7 +184,7 @@ class DownloadManager @Inject constructor(
                     audioFormat = entity.audioFormat,
                     sizeBytes = null,
                 )
-                val file = engine.download(entity.url, option, entity.subtitles, entity.id) { percent, eta, line ->
+                val onProgress: (Float, Long, String) -> Unit = { percent, eta, line ->
                     val pct = percent.coerceIn(0f, 100f).toInt()
                     if (lastPercent[entity.id] != pct) {
                         lastPercent[entity.id] = pct
@@ -185,6 +192,17 @@ class DownloadManager @Inject constructor(
                         scope.launch { dao.setProgress(entity.id, pct / 100f, speed, eta) }
                         notifier.progress(entity, pct / 100f, speed, eta)
                     }
+                }
+                val file = if (option.kind == MediaKind.IMAGE) {
+                    val outputDir = File(context.getExternalFilesDir(null), "Grabi").apply { mkdirs() }
+                    directDownloader.download(
+                        entity.url,
+                        File(outputDir, imageFileName(entity.title, entity.url)),
+                        entity.id,
+                        onProgress,
+                    )
+                } else {
+                    engine.download(entity.url, option, entity.subtitles, entity.id, onProgress)
                 }
                 val uri = MediaStorePublisher.publish(context, file, option.kind)
                 dao.finish(
@@ -195,6 +213,11 @@ class DownloadManager @Inject constructor(
                 )
                 notifier.done(entity, uri?.toString() ?: file.absolutePath)
             } catch (e: YoutubeDL.CanceledException) {
+                val paused = pauseRequested.remove(entity.id)
+                val status = if (paused) DownloadStatus.PAUSED else DownloadStatus.CANCELED
+                dao.setStatus(entity.id, status.name)
+                notifier.stopped(entity, status)
+            } catch (e: CancellationException) {
                 val paused = pauseRequested.remove(entity.id)
                 val status = if (paused) DownloadStatus.PAUSED else DownloadStatus.CANCELED
                 dao.setStatus(entity.id, status.name)
@@ -253,5 +276,12 @@ class DownloadManager @Inject constructor(
 
     companion object {
         private val SPEED_REGEX = Regex("""at\s+(\S+/s)""")
+
+        private fun imageFileName(title: String, url: String): String {
+            val base = title.take(60).replace(Regex("[^A-Za-z0-9._-]"), "_").ifBlank { "image" }
+            val ext = url.substringBefore('?').substringAfterLast('.', "").lowercase()
+            val safeExt = if (ext in setOf("jpg", "jpeg", "png", "webp", "gif", "bmp", "avif")) ext else "jpg"
+            return "$base.$safeExt"
+        }
     }
 }
