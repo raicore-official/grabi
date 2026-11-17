@@ -7,6 +7,12 @@ updates:
     open-pull-requests-limit: 5
     commit-message:
       prefix: "chore(deps)"
+    ignore:
+      # Compose/AGP majors require compileSdk 37+ and a toolchain bump; done deliberately, not by bot.
+      - dependency-name: "androidx.compose*"
+        update-types: ["version-update:semver-major"]
+      - dependency-name: "com.android*"
+        update-types: ["version-update:semver-major"]
   - package-ecosystem: github-actions
     directory: /
     schedule:
