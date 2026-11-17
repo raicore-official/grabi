@@ -113,7 +113,10 @@ fun GrabiApp(pendingLink: PendingLink) {
                     navArgument("title") { defaultValue = "" },
                 ),
             ) {
-                PlayerScreen(onBack = { navController.popBackStack() })
+                PlayerScreen(
+                    onBack = { navController.popBackStack() },
+                    onOpenPlayer = ::openPlayer,
+                )
             }
         }
         if (showBottomBar) {

@@ -74,6 +74,18 @@ class YtDlpEngine @Inject constructor(
         )
     }
 
+    suspend fun streamUrls(url: String, selector: String): List<String> {
+        ensureInitialized()
+        val request = YoutubeDLRequest(url)
+            .addOption("-f", selector)
+            .addOption("--no-playlist")
+            .addOption("-g")
+        val response = withContext(Dispatchers.IO) {
+            YoutubeDL.getInstance().execute(request, "urls-${System.nanoTime()}")
+        }
+        return response.out.lines().map { it.trim() }.filter { it.startsWith("http") }
+    }
+
     suspend fun download(
         url: String,
         option: MediaOption,

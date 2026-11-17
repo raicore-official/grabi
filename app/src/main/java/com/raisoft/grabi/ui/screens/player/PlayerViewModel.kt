@@ -7,8 +7,11 @@ import androidx.core.os.bundleOf
 import androidx.lifecycle.SavedStateHandle
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import androidx.media3.common.C
+import androidx.media3.common.PlaybackException
 import androidx.media3.common.PlaybackParameters
 import androidx.media3.common.Player
+import androidx.media3.datasource.HttpDataSource
 import androidx.media3.session.MediaController
 import androidx.media3.session.SessionCommand
 import androidx.media3.session.SessionToken
@@ -16,8 +19,11 @@ import com.raisoft.grabi.data.db.FavoriteEntity
 import com.raisoft.grabi.data.db.HistoryEntity
 import com.raisoft.grabi.data.db.LibraryDao
 import com.raisoft.grabi.data.download.DownloadManager
+import com.raisoft.grabi.data.download.YtDlpEngine
+import com.raisoft.grabi.data.playback.PlaybackRetryPolicy
 import com.raisoft.grabi.data.playback.PlaybackService
 import com.raisoft.grabi.data.stream.StreamRepository
+import com.raisoft.grabi.domain.StreamOptionMapper
 import com.raisoft.grabi.domain.model.MediaKind
 import com.raisoft.grabi.domain.model.MediaOption
 import com.raisoft.grabi.domain.model.StreamInfo
@@ -34,6 +40,7 @@ import kotlinx.coroutines.launch
 data class PlayerUiState(
     val loading: Boolean = true,
     val error: String? = null,
+    val notice: String? = null,
     val info: StreamInfo? = null,
     val selectedVideoId: String? = null,
     val selectedAudioId: String? = null,
@@ -41,6 +48,12 @@ data class PlayerUiState(
     val speed: Float = 1f,
     val isFavorite: Boolean = false,
     val isPlaying: Boolean = false,
+    val playWhenReady: Boolean = true,
+    val buffering: Boolean = false,
+    val captionsEnabled: Boolean = true,
+    val positionMs: Long = 0L,
+    val durationMs: Long = 0L,
+    val bufferedMs: Long = 0L,
 )
 
 @HiltViewModel
@@ -50,6 +63,7 @@ class PlayerViewModel @Inject constructor(
     private val streamRepository: StreamRepository,
     private val libraryDao: LibraryDao,
     private val downloadManager: DownloadManager,
+    private val ytDlpEngine: YtDlpEngine,
 ) : ViewModel() {
 
     val url: String = savedStateHandle.get<String>("url").orEmpty()
@@ -61,6 +75,10 @@ class PlayerViewModel @Inject constructor(
     private val _controller = MutableStateFlow<MediaController?>(null)
     val controller = _controller.asStateFlow()
 
+    private var recoveryAttempt = 0
+    private var recovering = false
+    private var lastKnownPositionMs = 0L
+
     init {
         viewModelScope.launch {
             libraryDao.observeFavorites().collect { favorites ->
@@ -68,6 +86,21 @@ class PlayerViewModel @Inject constructor(
             }
         }
         connectController()
+        viewModelScope.launch {
+            while (isActive) {
+                delay(500)
+                val controller = _controller.value ?: continue
+                val position = controller.currentPosition
+                if (position > 0) lastKnownPositionMs = position
+                _ui.update {
+                    it.copy(
+                        positionMs = position,
+                        durationMs = controller.duration.coerceAtLeast(0L),
+                        bufferedMs = controller.bufferedPosition,
+                    )
+                }
+            }
+        }
         viewModelScope.launch {
             while (isActive) {
                 delay(5_000)
@@ -83,14 +116,7 @@ class PlayerViewModel @Inject constructor(
             {
                 runCatching { future.get() }
                     .onSuccess { controller ->
-                        controller.addListener(
-                            object : Player.Listener {
-                                override fun onIsPlayingChanged(isPlaying: Boolean) {
-                                    _ui.update { it.copy(isPlaying = isPlaying) }
-                                    if (!isPlaying) savePosition()
-                                }
-                            },
-                        )
+                        controller.addListener(playerListener)
                         _controller.value = controller
                         loadStream()
                     }
@@ -104,27 +130,136 @@ class PlayerViewModel @Inject constructor(
         )
     }
 
-    fun retry() {
-        _ui.update { it.copy(loading = true, error = null) }
-        if (_controller.value != null) loadStream() else connectController()
+    private val playerListener = object : Player.Listener {
+        override fun onIsPlayingChanged(isPlaying: Boolean) {
+            _ui.update { it.copy(isPlaying = isPlaying) }
+            if (!isPlaying) savePosition()
+        }
+
+        override fun onPlayWhenReadyChanged(playWhenReady: Boolean, reason: Int) {
+            _ui.update { it.copy(playWhenReady = playWhenReady) }
+        }
+
+        override fun onPlaybackStateChanged(state: Int) {
+            _ui.update { it.copy(buffering = state == Player.STATE_BUFFERING) }
+            if (state == Player.STATE_READY) {
+                recoveryAttempt = 0
+                recovering = false
+            }
+            if (state == Player.STATE_ENDED) savePosition()
+        }
+
+        override fun onPlayerError(error: PlaybackException) {
+            handlePlaybackError(error)
+        }
     }
 
-    private fun loadStream() {
+    private fun handlePlaybackError(error: PlaybackException) {
+        if (recovering) return
+        recovering = true
+        val httpStatus = (error.cause as? HttpDataSource.InvalidResponseCodeException)?.responseCode
+        val expirySuspected = PlaybackRetryPolicy.isExpirySuspected(httpStatus, error.errorCode)
+        val position = maxOf(_controller.value?.currentPosition ?: 0L, lastKnownPositionMs)
+        val action = PlaybackRetryPolicy.nextAction(recoveryAttempt, expirySuspected)
+        recoveryAttempt++
+        val raw = error.message ?: "Playback failed"
+        when (action) {
+            PlaybackRetryPolicy.Action.REEXTRACT -> reextract(position, raw)
+            PlaybackRetryPolicy.Action.PROGRESSIVE_FALLBACK -> progressiveFallback(position, raw)
+            PlaybackRetryPolicy.Action.YTDLP_FALLBACK -> ytDlpFallback(position, raw)
+            PlaybackRetryPolicy.Action.FAIL -> fail(raw)
+        }
+    }
+
+    private fun reextract(positionMs: Long, raw: String) {
+        _ui.update { it.copy(notice = "Stream expired — refreshing links…", buffering = true) }
         viewModelScope.launch {
-            val info = runCatching { streamRepository.resolve(url) }
+            val refreshed = runCatching { streamRepository.resolve(url, forceRefresh = true) }.getOrNull()
+            if (refreshed != null && refreshed.videoOptions.isNotEmpty()) {
+                _ui.update {
+                    it.copy(
+                        info = refreshed,
+                        selectedVideoId = refreshed.videoOptions.firstOrNull()?.id,
+                        selectedAudioId = refreshed.audioOptions.firstOrNull()?.id,
+                    )
+                }
+                recovering = false
+                applyMedia(positionMs)
+            } else {
+                progressiveFallback(positionMs, raw)
+            }
+        }
+    }
+
+    private fun progressiveFallback(positionMs: Long, raw: String) {
+        val fallback = _ui.value.info?.let { StreamOptionMapper.progressiveFallback(it.videoOptions) }
+        if (fallback != null) {
+            _ui.update { it.copy(notice = "Switched to a compatible stream (${fallback.label})") }
+            sendMedia(fallback.videoUrl, null, positionMs)
+            recovering = false
+        } else {
+            ytDlpFallback(positionMs, raw)
+        }
+    }
+
+    private fun ytDlpFallback(positionMs: Long, raw: String) {
+        _ui.update { it.copy(notice = "Trying yt-dlp fallback…", buffering = true) }
+        viewModelScope.launch {
+            val urls = runCatching { ytDlpEngine.streamUrls(url, "best[height<=720]/best") }
+                .getOrDefault(emptyList())
+            val direct = urls.firstOrNull()
+            if (direct != null) {
+                _ui.update { it.copy(notice = "Playing via yt-dlp") }
+                sendMedia(direct, null, positionMs)
+                recovering = false
+            } else {
+                fail(raw)
+            }
+        }
+    }
+
+    private fun fail(raw: String) {
+        recovering = false
+        recoveryAttempt = 0
+        _ui.update {
+            it.copy(loading = false, buffering = false, error = PlaybackRetryPolicy.friendlyMessage(raw))
+        }
+    }
+
+    fun retry() {
+        recoveryAttempt = 0
+        recovering = false
+        _ui.update { it.copy(loading = true, error = null, notice = null) }
+        if (_controller.value != null) loadStream(forceRefresh = true) else connectController()
+    }
+
+    fun consumeNotice() {
+        _ui.update { it.copy(notice = null) }
+    }
+
+    private fun loadStream(forceRefresh: Boolean = false) {
+        viewModelScope.launch {
+            val info = runCatching { streamRepository.resolve(url, forceRefresh) }
                 .getOrElse { error ->
                     _ui.update {
-                        it.copy(loading = false, error = error.message ?: "Could not load this link")
+                        it.copy(
+                            loading = false,
+                            error = PlaybackRetryPolicy.friendlyMessage(
+                                error.message ?: "Could not load this link",
+                            ),
+                        )
                     }
                     return@launch
                 }
             val resumePosition = libraryDao.historyByUrl(url)?.positionMs ?: 0L
+            lastKnownPositionMs = resumePosition
             _ui.update {
                 it.copy(
                     loading = false,
                     info = info,
                     selectedVideoId = it.selectedVideoId ?: info.videoOptions.firstOrNull()?.id,
                     selectedAudioId = it.selectedAudioId ?: info.audioOptions.firstOrNull()?.id,
+                    captionsEnabled = info.subtitleUrl != null,
                 )
             }
             libraryDao.upsertHistory(
@@ -142,8 +277,28 @@ class PlayerViewModel @Inject constructor(
         }
     }
 
+    fun togglePlay() {
+        val controller = _controller.value ?: return
+        if (controller.playbackState == Player.STATE_ENDED) {
+            controller.seekTo(0)
+            controller.play()
+        } else {
+            controller.playWhenReady = !controller.playWhenReady
+        }
+    }
+
+    fun seekTo(positionMs: Long) {
+        _controller.value?.seekTo(positionMs.coerceAtLeast(0L))
+    }
+
+    fun seekBy(deltaMs: Long) {
+        val controller = _controller.value ?: return
+        controller.seekTo((controller.currentPosition + deltaMs).coerceAtLeast(0L))
+    }
+
     fun selectVideo(id: String) {
-        _ui.update { it.copy(selectedVideoId = id, audioOnly = false) }
+        recoveryAttempt = 0
+        _ui.update { it.copy(selectedVideoId = id, audioOnly = false, error = null) }
         applyMedia(currentPosition())
     }
 
@@ -160,6 +315,14 @@ class PlayerViewModel @Inject constructor(
     fun setSpeed(speed: Float) {
         _controller.value?.playbackParameters = PlaybackParameters(speed)
         _ui.update { it.copy(speed = speed) }
+    }
+
+    fun setCaptions(enabled: Boolean) {
+        val controller = _controller.value ?: return
+        controller.trackSelectionParameters = controller.trackSelectionParameters.buildUpon()
+            .setTrackTypeDisabled(C.TRACK_TYPE_TEXT, !enabled)
+            .build()
+        _ui.update { it.copy(captionsEnabled = enabled) }
     }
 
     fun toggleFavorite() {
@@ -198,6 +361,7 @@ class PlayerViewModel @Inject constructor(
                 ),
                 subtitles = false,
             )
+            _ui.update { it.copy(notice = "Download queued") }
         }
     }
 
@@ -213,7 +377,6 @@ class PlayerViewModel @Inject constructor(
     private fun currentPosition(): Long = _controller.value?.currentPosition ?: 0L
 
     private fun applyMedia(positionMs: Long) {
-        val controller = _controller.value ?: return
         val state = _ui.value
         val info = state.info ?: return
         val option = if (state.audioOnly) {
@@ -223,18 +386,32 @@ class PlayerViewModel @Inject constructor(
             info.videoOptions.firstOrNull { it.id == state.selectedVideoId }
                 ?: info.videoOptions.firstOrNull()
         } ?: return
+        sendMedia(option.videoUrl, option.audioUrl, positionMs, info)
+    }
+
+    private fun sendMedia(
+        videoUrl: String?,
+        audioUrl: String?,
+        positionMs: Long,
+        info: StreamInfo? = _ui.value.info,
+    ) {
+        val controller = _controller.value ?: return
         controller.sendCustomCommand(
             SessionCommand(PlaybackService.ACTION_SET_MEDIA, Bundle.EMPTY),
             bundleOf(
-                PlaybackService.KEY_VIDEO_URL to option.videoUrl,
-                PlaybackService.KEY_AUDIO_URL to option.audioUrl,
+                PlaybackService.KEY_VIDEO_URL to videoUrl,
+                PlaybackService.KEY_AUDIO_URL to audioUrl,
                 PlaybackService.KEY_POSITION_MS to positionMs,
+                PlaybackService.KEY_SUBTITLE_URL to info?.subtitleUrl,
+                PlaybackService.KEY_SUBTITLE_LANGUAGE to info?.subtitleLanguage,
             ),
         )
         controller.playWhenReady = true
     }
 
     override fun onCleared() {
+        savePosition()
+        _controller.value?.removeListener(playerListener)
         _controller.value?.release()
         _controller.value = null
         super.onCleared()

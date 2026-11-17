@@ -9,6 +9,7 @@ object StreamOptionMapper {
         val resolution: String,
         val videoOnly: Boolean,
         val mimeType: String?,
+        val bitrate: Int = 0,
     )
 
     data class RawAudio(
@@ -17,7 +18,11 @@ object StreamOptionMapper {
         val mimeType: String?,
     )
 
-    fun videoOptions(videos: List<RawVideo>, audios: List<RawAudio>): List<StreamOption> {
+    fun videoOptions(
+        videos: List<RawVideo>,
+        audios: List<RawAudio>,
+        durationSeconds: Long = 0,
+    ): List<StreamOption> {
         val bestAudio = audios.maxByOrNull { it.bitrate }
         return videos.mapIndexed { index, video ->
             StreamOption(
@@ -27,8 +32,12 @@ object StreamOptionMapper {
                 audioUrl = if (video.videoOnly) bestAudio?.url else null,
                 height = video.resolution.substringBefore('p').toIntOrNull() ?: 0,
                 mimeType = video.mimeType,
+                sizeBytes = estimateSize(video.bitrate, durationSeconds),
             )
-        }.sortedByDescending { it.height }
+        }.sortedWith(
+            compareByDescending<StreamOption> { it.height }
+                .thenBy { if (it.mimeType?.contains("mp4") == true) 0 else 1 },
+        )
     }
 
     fun audioOptions(audios: List<RawAudio>): List<StreamOption> =
@@ -42,6 +51,13 @@ object StreamOptionMapper {
                 mimeType = audio.mimeType,
             )
         }
+
+    fun progressiveFallback(options: List<StreamOption>): StreamOption? =
+        options.filter { it.videoUrl != null && it.audioUrl == null }
+            .maxByOrNull { it.height }
+
+    private fun estimateSize(bitrate: Int, durationSeconds: Long): Long? =
+        if (bitrate > 0 && durationSeconds > 0) bitrate * 1000L * durationSeconds / 8 else null
 
     private fun audioLabel(audio: RawAudio): String {
         val codec = audio.mimeType?.substringAfter('/') ?: "audio"

@@ -1,14 +1,20 @@
 package com.raisoft.grabi.data.playback
 
+import android.net.Uri
 import android.os.Bundle
 import androidx.annotation.OptIn
+import androidx.media3.common.AudioAttributes
 import androidx.media3.common.C
 import androidx.media3.common.MediaItem
+import androidx.media3.common.MimeTypes
 import androidx.media3.common.util.UnstableApi
 import androidx.media3.common.util.Util
+import androidx.media3.datasource.DataSource
 import androidx.media3.datasource.DefaultDataSource
 import androidx.media3.datasource.DefaultHttpDataSource
 import androidx.media3.exoplayer.ExoPlayer
+import androidx.media3.exoplayer.dash.DashMediaSource
+import androidx.media3.exoplayer.hls.HlsMediaSource
 import androidx.media3.exoplayer.source.MediaSource
 import androidx.media3.exoplayer.source.MergingMediaSource
 import androidx.media3.exoplayer.source.ProgressiveMediaSource
@@ -31,6 +37,14 @@ class PlaybackService : MediaSessionService() {
         val player = ExoPlayer.Builder(this)
             .setWakeMode(C.WAKE_MODE_NETWORK)
             .setHandleAudioBecomingNoisy(true)
+            .setEnableDecoderFallback(true)
+            .setAudioAttributes(
+                AudioAttributes.Builder()
+                    .setUsage(C.USAGE_MEDIA)
+                    .setContentType(C.AUDIO_CONTENT_TYPE_MOVIE)
+                    .build(),
+                true,
+            )
             .build()
         session = MediaSession.Builder(this, player)
             .setCallback(SessionCallback(player))
@@ -73,6 +87,8 @@ class PlaybackService : MediaSessionService() {
                 val source = buildMediaSource(
                     videoUrl = args.getString(KEY_VIDEO_URL),
                     audioUrl = args.getString(KEY_AUDIO_URL),
+                    subtitleUrl = args.getString(KEY_SUBTITLE_URL),
+                    subtitleLanguage = args.getString(KEY_SUBTITLE_LANGUAGE),
                 )
                 if (source != null) {
                     player.setMediaSource(source, args.getLong(KEY_POSITION_MS, 0L))
@@ -84,9 +100,14 @@ class PlaybackService : MediaSessionService() {
         }
     }
 
-    private fun buildMediaSource(videoUrl: String?, audioUrl: String?): MediaSource? {
-        val video = videoUrl?.let { progressiveSource(it) }
-        val audio = audioUrl?.let { progressiveSource(it) }
+    private fun buildMediaSource(
+        videoUrl: String?,
+        audioUrl: String?,
+        subtitleUrl: String?,
+        subtitleLanguage: String?,
+    ): MediaSource? {
+        val video = videoUrl?.let { mediaSource(it, subtitleUrl, subtitleLanguage) }
+        val audio = audioUrl?.let { mediaSource(it, null, null) }
         return when {
             video != null && audio != null -> MergingMediaSource(video, audio)
             video != null -> video
@@ -94,22 +115,46 @@ class PlaybackService : MediaSessionService() {
         }
     }
 
-    private fun progressiveSource(url: String): MediaSource {
-        val factory = if (url.startsWith("http")) {
+    private fun mediaSource(url: String, subtitleUrl: String?, subtitleLanguage: String?): MediaSource {
+        val uri = Uri.parse(url)
+        val builder = MediaItem.Builder().setUri(uri)
+        if (subtitleUrl != null) {
+            builder.setSubtitleConfigurations(
+                listOf(
+                    MediaItem.SubtitleConfiguration.Builder(Uri.parse(subtitleUrl))
+                        .setMimeType(MimeTypes.TEXT_VTT)
+                        .setLanguage(subtitleLanguage)
+                        .setSelectionFlags(C.SELECTION_FLAG_DEFAULT)
+                        .build(),
+                ),
+            )
+        }
+        val item = builder.build()
+        val factory = dataSourceFactory(url)
+        return when (Util.inferContentType(uri)) {
+            C.CONTENT_TYPE_HLS -> HlsMediaSource.Factory(factory).createMediaSource(item)
+            C.CONTENT_TYPE_DASH -> DashMediaSource.Factory(factory).createMediaSource(item)
+            else -> ProgressiveMediaSource.Factory(factory).createMediaSource(item)
+        }
+    }
+
+    private fun dataSourceFactory(url: String): DataSource.Factory =
+        if (url.startsWith("http")) {
             DefaultHttpDataSource.Factory()
                 .setUserAgent(Util.getUserAgent(this, "Grabi"))
                 .setAllowCrossProtocolRedirects(true)
+                .setConnectTimeoutMs(15_000)
+                .setReadTimeoutMs(15_000)
         } else {
             DefaultDataSource.Factory(this)
         }
-        return ProgressiveMediaSource.Factory(factory)
-            .createMediaSource(MediaItem.fromUri(url))
-    }
 
     companion object {
         const val ACTION_SET_MEDIA = "com.raisoft.grabi.SET_MEDIA"
         const val KEY_VIDEO_URL = "video_url"
         const val KEY_AUDIO_URL = "audio_url"
         const val KEY_POSITION_MS = "position_ms"
+        const val KEY_SUBTITLE_URL = "subtitle_url"
+        const val KEY_SUBTITLE_LANGUAGE = "subtitle_language"
     }
 }
