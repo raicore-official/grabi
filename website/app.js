@@ -92,3 +92,12 @@ if (vpnStatus && vpnToggle) {
     vpnStatus.querySelector(".vpn-status-state").textContent = isOn ? "ON" : "OFF";
   });
 }
+
+const musicPlay = document.querySelector(".music-play");
+musicPlay?.addEventListener("click", () => {
+  const isPlaying = musicPlay.getAttribute("aria-pressed") !== "true";
+  musicPlay.setAttribute("aria-pressed", String(isPlaying));
+  musicPlay.setAttribute("aria-label", isPlaying ? "Pause music" : "Play music");
+  musicPlay.textContent = isPlaying ? "Ⅱ" : "▶";
+  document.querySelector(".music-live")?.classList.toggle("paused", !isPlaying);
+});
