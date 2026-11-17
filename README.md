@@ -10,7 +10,7 @@
 Open-source, VidMate-style video downloader and player for Android. No ads, no tracking, no API keys.
 Original developer: **Raisul Islam** ([Raisulxislam](https://github.com/Raisulxislam)) · Raisoft Studio.
 
-> **Status: v0.1.0 released · Phase 8 on main.** All seven roadmap phases are done: shell, yt-dlp engine, download manager, Media3 player, built-in browser (tabs, incognito, site grid, video/audio/image detection, EasyList/EasyPrivacy/uBlock adblock with per-site allowlist), WireGuard VPN (config import, country-organized community config finder, handshake verification, kill switch, split tunneling) and release polish (crash capture, F-Droid metadata, GitHub Releases). Phase 8 adds the native YouTube feed, the dedicated Grab tab, glassy icon-only navigation, SAF download destinations, manual engine updates and screen-off playback fixes. Backlog items are marked below.
+> **Status: v0.2.0 released.** All seven roadmap phases are done: shell, yt-dlp engine, download manager, Media3 player, built-in browser (tabs, incognito, site grid, video/audio/image detection, EasyList/EasyPrivacy/uBlock adblock with per-site allowlist), WireGuard VPN (config import, country-organized community config finder, handshake verification, kill switch, split tunneling) and release polish (crash capture, F-Droid metadata, GitHub Releases). v0.2.0 ships Phase 8: the native YouTube feed, the dedicated Grab tab, glassy icon-only navigation, SAF download destinations, manual engine updates and screen-off playback fixes. Backlog items are marked below.
 
 ## Screenshots
 
@@ -140,7 +140,7 @@ keytool -genkeypair -v -keystore grabi-release.jks -alias grabi \
 base64 -w0 grabi-release.jks > keystore.b64   # Git Bash; on macOS: base64 -i grabi-release.jks
 ```
 
-Add four repository secrets (Settings → Secrets and variables → Actions): `KEYSTORE_BASE64` (contents of keystore.b64), `KEYSTORE_PASSWORD`, `KEY_ALIAS` (`grabi`), `KEY_PASSWORD`. Then `git tag v0.1.0 && git push origin v0.1.0`. The workflow signs the APK and publishes it to GitHub Releases with auto-generated notes. Keep the keystore backed up — losing it means you can never update the app under the same signature.
+Add four repository secrets (Settings → Secrets and variables → Actions): `KEYSTORE_BASE64` (contents of keystore.b64), `KEYSTORE_PASSWORD`, `KEY_ALIAS` (`grabi`), `KEY_PASSWORD`. Then `git tag v0.2.0 && git push origin v0.2.0` (or the next version). The workflow signs the APK and publishes it to GitHub Releases with auto-generated notes. Keep the keystore backed up — losing it means you can never update the app under the same signature.
 
 **Signing is optional:** if any of the four secrets is missing, the workflow warns and publishes a **debug-signed APK** instead — installable via sideloading, but it cannot update an install signed with a different key. Add the secrets and push a new tag to switch to properly signed releases automatically.
 
@@ -149,7 +149,7 @@ Add four repository secrets (Settings → Secrets and variables → Actions): `K
 Store metadata lives in `fastlane/metadata/android/en-US/` (title, short/full description, per-versionCode changelogs) and is picked up automatically by F-Droid's build server. Getting listed is a community process, done outside this repo:
 
 1. Fork [fdroiddata](https://gitlab.com/fdroid/fdroiddata) on GitLab.
-2. Add `metadata/com.raisoft.grabi.yml` (copy an existing GPL app as a template): `Repo Type: git`, `Repo: https://github.com/raicore-official/grabi`, and a build block with `versionName: 0.1.0`, `versionCode: 1`, `commit: v0.1.0`, `gradle: yes`.
+2. Add `metadata/com.raisoft.grabi.yml` (copy an existing GPL app as a template): `Repo Type: git`, `Repo: https://github.com/raicore-official/grabi`, and a build block with `versionName: 0.2.0`, `versionCode: 2`, `commit: v0.2.0`, `gradle: yes`.
 3. Validate locally with `fdroid lint` / `fdroid build` if you can, then open a merge request and respond to reviewer feedback.
 
 F-Droid builds from source and signs with its own key, so no keystore secrets are needed for that channel. Screenshots (optional but recommended) go in `fastlane/metadata/android/en-US/images/phoneScreenshots/`.
