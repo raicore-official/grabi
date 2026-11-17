@@ -75,6 +75,10 @@ Never commit a keystore. To sign official releases, add repository secrets:
 
 Metadata lives in `fastlane/metadata/android/en-US`. The app is GPL-3.0-or-later and contains no proprietary dependencies, no analytics and no hardcoded servers or keys.
 
+## Website
+
+The app landing page lives in [`website/`](website/). Deploy it to Vercel by importing this repository and setting **Root Directory** to `website`, **Framework Preset** to `Other`, and leaving the build command empty. It is a static site with no runtime dependencies.
+
 ## Open-source libraries
 
 yt-dlp · youtubedl-android · NewPipeExtractor · AndroidX/Jetpack Compose · Media3 · Hilt · Room · DataStore · WorkManager · OkHttp · Coil · wireguard-android · Montserrat (SIL OFL, text in `licenses/`).
