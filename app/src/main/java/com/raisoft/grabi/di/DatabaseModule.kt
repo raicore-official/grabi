@@ -42,7 +42,7 @@ object DatabaseModule {
 
     private val MIGRATION_2_3 = object : Migration(2, 3) {
         override fun migrate(db: SupportSQLiteDatabase) {
-            db.execSQL("ALTER TABLE downloads ADD COLUMN thumbnailUrl TEXT DEFAULT NULL")
+            db.execSQL("ALTER TABLE downloads ADD COLUMN thumbnailUrl TEXT DEFAULT ''")
         }
     }
 
