@@ -46,6 +46,7 @@ class DownloadManager @Inject constructor(
     private val dao: DownloadDao,
     private val engine: YtDlpEngine,
     private val directDownloader: DirectDownloader,
+    private val torrentEngine: TorrentEngine,
     private val notifier: DownloadNotifier,
     private val streamRepository: StreamRepository,
     settingsRepository: SettingsRepository,
@@ -129,6 +130,7 @@ class DownloadManager @Inject constructor(
             pauseRequested.add(id)
             engine.cancel(id)
             directDownloader.cancel(id)
+            torrentEngine.cancel(id)
         } else {
             scope.launch {
                 dao.setStatus(id, DownloadStatus.PAUSED.name)
@@ -169,6 +171,7 @@ class DownloadManager @Inject constructor(
         if (activeJobs.containsKey(id)) {
             engine.cancel(id)
             directDownloader.cancel(id)
+            torrentEngine.cancel(id)
         } else {
             scope.launch {
                 dao.setStatus(id, DownloadStatus.CANCELED.name)
@@ -183,6 +186,7 @@ class DownloadManager @Inject constructor(
             if (activeJobs.containsKey(id)) {
                 engine.cancel(id)
                 directDownloader.cancel(id)
+                torrentEngine.cancel(id)
             }
             entity.contentUri?.let {
                 runCatching { context.contentResolver.delete(Uri.parse(it), null, null) }
@@ -285,7 +289,10 @@ class DownloadManager @Inject constructor(
                     MediaKind.AUDIO -> cached?.audioOptions?.firstOrNull()
                     MediaKind.FILE -> null
                 }
-                val file = if (option.kind == MediaKind.IMAGE || option.kind == MediaKind.FILE) {
+                val file = if (isTorrentUrl(entity.url)) {
+                    val torrentDir = File(context.getExternalFilesDir(null), "Grabi/torrents/${entity.id}")
+                    torrentEngine.download(entity.url, torrentDir, entity.id, onProgress)
+                } else if (option.kind == MediaKind.IMAGE || option.kind == MediaKind.FILE) {
                     val outputDir = File(context.getExternalFilesDir(null), "Grabi").apply { mkdirs() }
                     directDownloader.downloadRanges(
                         entity.url,
@@ -441,6 +448,10 @@ class DownloadManager @Inject constructor(
     companion object {
         private val SPEED_REGEX = Regex("""at\s+(\S+/s)""")
         private val ARIA_SPEED_REGEX = Regex("""DL:(\S+)""")
+
+        fun isTorrentUrl(url: String): Boolean =
+            url.startsWith("magnet:", ignoreCase = true) ||
+                url.substringBefore('?').endsWith(".torrent", ignoreCase = true)
 
         private fun imageFileName(title: String, url: String): String {
             val base = title.take(60).replace(Regex("[^A-Za-z0-9._-]"), "_").ifBlank { "image" }

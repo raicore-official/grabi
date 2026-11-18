@@ -5,6 +5,11 @@ on:
     branches: [main]
   pull_request:
   workflow_dispatch:
+    inputs:
+      record_goldens:
+        description: Record new Paparazzi goldens instead of verifying
+        type: boolean
+        default: false
 
 concurrency:
   group: build-${{ github.ref }}
@@ -45,7 +50,12 @@ jobs:
         run: ./gradlew testDebugUnitTest --no-daemon
 
       - name: Verify theme snapshots against committed goldens
+        if: ${{ !(github.event_name == 'workflow_dispatch' && inputs.record_goldens) }}
         run: ./gradlew :app:verifyPaparazziDebug --no-daemon
+
+      - name: Record theme snapshot goldens
+        if: ${{ github.event_name == 'workflow_dispatch' && inputs.record_goldens }}
+        run: ./gradlew :app:recordPaparazziDebug --no-daemon
 
       - name: Run lint
         run: ./gradlew lintDebug --no-daemon

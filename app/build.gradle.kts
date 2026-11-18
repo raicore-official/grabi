@@ -15,8 +15,8 @@ android {
         applicationId = "com.raisoft.grabi"
         minSdk = 26
         targetSdk = 34
-        versionCode = 9
-        versionName = "0.4.4"
+        versionCode = 10
+        versionName = "0.5.0"
         vectorDrawables { useSupportLibrary = true }
         ndk {
             abiFilters += listOf("arm64-v8a", "armeabi-v7a", "x86_64", "x86")
@@ -108,6 +108,12 @@ dependencies {
     implementation(libs.okhttp)
     implementation(libs.newpipe.extractor)
     implementation(libs.wireguard.tunnel)
+    implementation(libs.bt.core) { exclude(group = "com.google.inject", module = "guice") }
+    implementation(libs.bt.dht) { exclude(group = "com.google.inject", module = "guice") }
+    implementation(libs.bt.http.tracker.client) { exclude(group = "com.google.inject", module = "guice") }
+    // Guice 5 generates bytecode at runtime, which ART rejects; the 4.2.3 no_aop build is Android-safe.
+    implementation("com.google.inject:guice:4.2.3:no_aop")
+    implementation(libs.slf4j.android)
     coreLibraryDesugaring(libs.desugar.jdk.nio)
 
     testImplementation(libs.junit)

@@ -118,7 +118,7 @@ class WebViewEngine(
                 @Suppress("DEPRECATION")
                 WebSettingsCompat.setForceDark(
                     view.settings,
-                    if (dark) WebSettings.FORCE_DARK_ON else WebSettings.FORCE_DARK_OFF,
+                    if (dark) WebSettingsCompat.FORCE_DARK_ON else WebSettingsCompat.FORCE_DARK_OFF,
                 )
             }
         }

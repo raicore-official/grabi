@@ -23,3 +23,19 @@
 -keep class com.wireguard.crypto.** { *; }
 -keep class com.wireguard.config.** { *; }
 -dontwarn com.wireguard.**
+
+# bt (BitTorrent) wires its internals through Guice reflection; R8 must keep the graph intact.
+-keep class bt.** { *; }
+-keep class lbms.plugins.mldht.** { *; }
+-keep class com.google.inject.** { *; }
+-keep class javax.inject.** { *; }
+-keep class org.yaml.snakeyaml.** { *; }
+-keepclassmembers class * {
+    @com.google.inject.Inject <fields>;
+    @com.google.inject.Inject <init>(...);
+    @com.google.inject.Provides <methods>;
+}
+-dontwarn bt.**
+-dontwarn com.google.inject.**
+-dontwarn org.slf4j.**
+-dontwarn java.beans.**

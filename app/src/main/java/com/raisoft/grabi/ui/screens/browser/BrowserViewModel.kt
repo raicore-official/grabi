@@ -85,11 +85,15 @@ class BrowserViewModel @Inject constructor(
     fun setDownloadHandler(handler: ((DownloadRequest) -> Unit)?) {
         tabManager.onDownload = { url, _, contentDisposition, mimeType ->
             val kind = MediaSniffer.classify(url, mimeType) ?: MediaKind.FILE
-            val title = contentDisposition
-                ?.substringAfter("filename=", "")
-                ?.trim('"', '\'')
-                ?.takeIf { it.isNotBlank() }
-                ?: Uri.parse(url).lastPathSegment.orEmpty().ifBlank { "download" }
+            val title = if (url.startsWith("magnet:", ignoreCase = true)) {
+                LinkValidator.torrentTitle(url)
+            } else {
+                contentDisposition
+                    ?.substringAfter("filename=", "")
+                    ?.trim('"', '\'')
+                    ?.takeIf { it.isNotBlank() }
+                    ?: Uri.parse(url).lastPathSegment.orEmpty().ifBlank { "download" }
+            }
             val option = MediaOption(
                 id = "browser-${kind.name.lowercase()}",
                 label = title,
@@ -137,6 +141,10 @@ class BrowserViewModel @Inject constructor(
     fun submitUrl(input: String) {
         val trimmed = input.trim()
         if (trimmed.isEmpty()) return
+        if (trimmed.startsWith("magnet:", ignoreCase = true) && LinkValidator.isValidUrl(trimmed)) {
+            tabManager.onDownload?.invoke(trimmed, null, null, null)
+            return
+        }
         val url = when {
             LinkValidator.isValidUrl(trimmed) -> trimmed
             !trimmed.contains(' ') && trimmed.contains('.') -> "https://$trimmed"

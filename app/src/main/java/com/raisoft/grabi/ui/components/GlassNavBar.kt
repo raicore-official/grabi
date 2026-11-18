@@ -18,6 +18,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.shadow
 import androidx.compose.ui.graphics.Brush
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
@@ -29,34 +30,25 @@ fun GlassNavBar(
     onSelect: (TopLevelDestination) -> Unit,
     modifier: Modifier = Modifier,
 ) {
-    val shape = RoundedCornerShape(30.dp)
+    val shape = RoundedCornerShape(28.dp)
     val scheme = MaterialTheme.colorScheme
     Row(
         modifier = modifier
             .fillMaxWidth()
-            .padding(horizontal = 24.dp)
-            .padding(bottom = 12.dp)
-            .shadow(20.dp, shape, clip = false)
+            .padding(horizontal = 20.dp)
+            .padding(bottom = 10.dp)
+            .shadow(6.dp, shape, clip = false)
             .clip(shape)
             .background(
                 Brush.verticalGradient(
                     listOf(
-                        scheme.surfaceContainerHigh.copy(alpha = 0.94f),
-                        scheme.surfaceContainer.copy(alpha = 0.88f),
+                        scheme.surfaceContainer.copy(alpha = 0.96f),
+                        scheme.surface.copy(alpha = 0.96f),
                     ),
                 ),
             )
-            .border(
-                width = 1.dp,
-                brush = Brush.verticalGradient(
-                    listOf(
-                        scheme.outlineVariant.copy(alpha = 0.55f),
-                        scheme.outlineVariant.copy(alpha = 0.15f),
-                    ),
-                ),
-                shape = shape,
-            )
-            .padding(horizontal = 6.dp, vertical = 8.dp),
+            .border(1.dp, scheme.outlineVariant.copy(alpha = 0.12f), shape)
+            .padding(horizontal = 6.dp, vertical = 6.dp),
         horizontalArrangement = Arrangement.SpaceEvenly,
         verticalAlignment = Alignment.CenterVertically,
     ) {
@@ -66,33 +58,19 @@ fun GlassNavBar(
                 modifier = Modifier
                     .clip(RoundedCornerShape(22.dp))
                     .background(
-                        if (selected) {
-                            Brush.radialGradient(
-                                listOf(
-                                    MaterialTheme.colorScheme.primary.copy(alpha = 0.28f),
-                                    MaterialTheme.colorScheme.primary.copy(alpha = 0.06f),
-                                ),
-                            )
-                        } else {
-                            Brush.radialGradient(
-                                listOf(
-                                    MaterialTheme.colorScheme.primary.copy(alpha = 0f),
-                                    MaterialTheme.colorScheme.primary.copy(alpha = 0f),
-                                ),
-                            )
-                        },
+                        if (selected) scheme.primaryContainer else Color.Transparent,
                     )
                     .clickable { onSelect(destination) }
-                    .padding(horizontal = 12.dp, vertical = 10.dp),
+                    .padding(horizontal = 14.dp, vertical = 10.dp),
                 contentAlignment = Alignment.Center,
             ) {
                 Icon(
                     painter = painterResource(destination.iconRes),
                     contentDescription = stringResource(destination.labelRes),
                     tint = if (selected) {
-                        MaterialTheme.colorScheme.primary
+                        scheme.onPrimaryContainer
                     } else {
-                        MaterialTheme.colorScheme.onSurfaceVariant
+                        scheme.onSurfaceVariant
                     },
                     modifier = Modifier.size(24.dp),
                 )

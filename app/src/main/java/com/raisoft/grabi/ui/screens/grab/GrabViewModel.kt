@@ -8,6 +8,8 @@ import com.raisoft.grabi.data.download.PendingLink
 import com.raisoft.grabi.data.download.YtDlpEngine
 import com.raisoft.grabi.domain.LinkValidator
 import com.raisoft.grabi.domain.model.MediaInfo
+import com.raisoft.grabi.domain.model.MediaKind
+import com.raisoft.grabi.domain.model.MediaOption
 import dagger.hilt.android.lifecycle.HiltViewModel
 import javax.inject.Inject
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -67,6 +69,22 @@ class GrabViewModel @Inject constructor(
         val candidate = LinkValidator.extractUrl(raw) ?: raw.trim()
         if (!LinkValidator.isValidUrl(candidate)) {
             _ui.update { it.copy(linkInvalid = true) }
+            return
+        }
+        if (LinkValidator.isTorrent(candidate)) {
+            viewModelScope.launch {
+                _ui.update { it.copy(fetching = true, error = null, info = null, selectedOptionId = null) }
+                val option = MediaOption(
+                    id = "torrent",
+                    label = "Torrent",
+                    kind = MediaKind.FILE,
+                    formatSelector = candidate,
+                    audioFormat = null,
+                    sizeBytes = null,
+                )
+                val id = manager.enqueue(candidate, LinkValidator.torrentTitle(candidate), option, false)
+                _ui.update { it.copy(fetching = false, lastDownloadId = id) }
+            }
             return
         }
         viewModelScope.launch {
