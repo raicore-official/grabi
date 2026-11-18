@@ -3,7 +3,6 @@ package com.raisoft.grabi.ui.screens.onboarding
 import android.Manifest
 import android.content.Intent
 import android.content.pm.PackageManager
-import android.net.VpnService
 import android.os.Build
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
@@ -21,7 +20,6 @@ import androidx.compose.material3.Button
 import androidx.compose.material3.ElevatedCard
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
-import androidx.compose.material3.Switch
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
@@ -35,7 +33,6 @@ import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
 import androidx.core.content.ContextCompat
 import androidx.hilt.navigation.compose.hiltViewModel
-import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.raisoft.grabi.R
 
 @Composable
@@ -44,7 +41,6 @@ fun OnboardingScreen(
     viewModel: OnboardingViewModel = hiltViewModel(),
 ) {
     val context = LocalContext.current
-    val killSwitch by viewModel.killSwitch.collectAsStateWithLifecycle()
     var notificationsGranted by remember {
         mutableStateOf(
             Build.VERSION.SDK_INT < Build.VERSION_CODES.TIRAMISU ||
@@ -53,7 +49,6 @@ fun OnboardingScreen(
         )
     }
     var folderPicked by remember { mutableStateOf(false) }
-    var vpnGranted by remember { mutableStateOf(VpnService.prepare(context) == null) }
 
     val notificationLauncher = rememberLauncherForActivityResult(
         ActivityResultContracts.RequestPermission(),
@@ -72,9 +67,6 @@ fun OnboardingScreen(
             folderPicked = true
         }
     }
-    val vpnLauncher = rememberLauncherForActivityResult(
-        ActivityResultContracts.StartActivityForResult(),
-    ) { vpnGranted = VpnService.prepare(context) == null }
 
     Column(
         modifier = Modifier
@@ -113,36 +105,6 @@ fun OnboardingScreen(
             actionLabel = stringResource(R.string.onboarding_choose_folder),
             onAction = { folderLauncher.launch(null) },
         )
-        PermissionCard(
-            title = stringResource(R.string.onboarding_vpn),
-            summary = stringResource(R.string.onboarding_vpn_summary),
-            granted = vpnGranted,
-            actionLabel = stringResource(R.string.onboarding_allow_vpn),
-            onAction = {
-                val consent = VpnService.prepare(context)
-                if (consent != null) vpnLauncher.launch(consent) else vpnGranted = true
-            },
-        )
-
-        ElevatedCard(Modifier.fillMaxWidth()) {
-            Row(
-                modifier = Modifier.padding(16.dp),
-                verticalAlignment = Alignment.CenterVertically,
-            ) {
-                Column(Modifier.weight(1f)) {
-                    Text(
-                        text = stringResource(R.string.onboarding_killswitch),
-                        style = MaterialTheme.typography.bodyLarge,
-                    )
-                    Text(
-                        text = stringResource(R.string.onboarding_killswitch_summary),
-                        style = MaterialTheme.typography.bodySmall,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant,
-                    )
-                }
-                Switch(checked = killSwitch, onCheckedChange = viewModel::setKillSwitch)
-            }
-        }
 
         Button(
             onClick = {

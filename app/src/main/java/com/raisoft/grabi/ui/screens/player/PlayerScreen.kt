@@ -6,6 +6,7 @@ import android.content.Intent
 import android.content.pm.ActivityInfo
 import android.content.pm.PackageManager
 import android.util.Rational
+import android.view.LayoutInflater
 import androidx.activity.compose.BackHandler
 import androidx.annotation.OptIn
 import androidx.compose.animation.fadeIn
@@ -26,8 +27,10 @@ import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.statusBarsPadding
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
@@ -151,7 +154,7 @@ fun PlayerScreen(
         onDispose {
             if (window != null) {
                 activity?.requestedOrientation = ActivityInfo.SCREEN_ORIENTATION_UNSPECIFIED
-                WindowCompat.setDecorFitsSystemWindows(window, true)
+                WindowCompat.setDecorFitsSystemWindows(window, false)
                 WindowInsetsControllerCompat(window, window.decorView)
                     .show(WindowInsetsCompat.Type.systemBars())
             }
@@ -184,6 +187,7 @@ fun PlayerScreen(
             GlassSurface(
                 modifier = Modifier
                     .fillMaxWidth()
+                    .statusBarsPadding()
                     .padding(horizontal = 8.dp, vertical = 4.dp),
             ) {
                 Row(verticalAlignment = Alignment.CenterVertically) {
@@ -245,7 +249,10 @@ fun PlayerScreen(
                         AudioStage(info)
                     } else {
                         AndroidView(
-                            factory = { ctx -> PlayerView(ctx).apply { useController = false } },
+                            factory = { ctx ->
+                                LayoutInflater.from(ctx)
+                                    .inflate(R.layout.grabi_player_view, null) as PlayerView
+                            },
                             update = { view -> view.player = controller },
                             onRelease = { view -> view.player = null },
                             modifier = Modifier.fillMaxSize(),
@@ -539,6 +546,7 @@ fun PlayerScreen(
                             .fillMaxWidth()
                             .weight(1f)
                             .verticalScroll(rememberScrollState())
+                            .navigationBarsPadding()
                             .padding(16.dp),
                         verticalArrangement = Arrangement.spacedBy(12.dp),
                     ) {

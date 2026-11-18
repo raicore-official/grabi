@@ -24,9 +24,6 @@ import com.raisoft.grabi.data.PendingNav
 import com.raisoft.grabi.data.download.PendingLink
 import com.raisoft.grabi.ui.components.GlassNavBar
 import com.raisoft.grabi.ui.navigation.TopLevelDestination
-import com.raisoft.grabi.ui.screens.autobot.AutoBotScreen
-import com.raisoft.grabi.ui.screens.autobot.VpnBookHandoffScreen
-import com.raisoft.grabi.ui.screens.autobot.RenewalAssistantScreen
 import com.raisoft.grabi.ui.screens.browser.BrowserScreen
 import com.raisoft.grabi.ui.screens.downloads.DownloadsScreen
 import com.raisoft.grabi.ui.screens.grab.GrabScreen
@@ -34,7 +31,6 @@ import com.raisoft.grabi.ui.screens.home.HomeScreen
 import com.raisoft.grabi.ui.screens.library.LibraryScreen
 import com.raisoft.grabi.ui.screens.player.PlayerScreen
 import com.raisoft.grabi.ui.screens.settings.SettingsScreen
-import com.raisoft.grabi.ui.screens.vpn.VpnScreen
 
 @Composable
 fun GrabiApp(pendingLink: PendingLink, pendingNav: PendingNav) {
@@ -42,10 +38,7 @@ fun GrabiApp(pendingLink: PendingLink, pendingNav: PendingNav) {
     val backStackEntry by navController.currentBackStackEntryAsState()
     val currentRoute = backStackEntry?.destination?.route
     val showBottomBar = currentRoute?.startsWith("player") != true &&
-        currentRoute?.startsWith("browser") != true &&
-        currentRoute != "vpn" &&
-        currentRoute != "autobot" &&
-        currentRoute != "vpnbook-handoff"
+        currentRoute?.startsWith("browser") != true
 
     fun openPlayer(url: String, title: String, thumb: String = "") {
         navController.navigate(
@@ -137,41 +130,7 @@ fun GrabiApp(pendingLink: PendingLink, pendingNav: PendingNav) {
                 LibraryScreen(onOpenPlayer = ::openPlayer)
             }
             composable(TopLevelDestination.SETTINGS.route) {
-                SettingsScreen(
-                    onOpenVpn = { navController.navigate("vpn") },
-                    onOpenAutoBot = { navController.navigate("autobot") },
-                )
-            }
-            composable("vpn") {
-                VpnScreen(
-                    onBack = { navController.popBackStack() },
-                    onOpenRenewal = { providerId ->
-                        navController.navigate("renewal/${Uri.encode(providerId)}")
-                    },
-                )
-            }
-            composable("autobot") {
-                AutoBotScreen(
-                    onBack = { navController.popBackStack() },
-                    onOpenHandoff = { navController.navigate("vpnbook-handoff") },
-                )
-            }
-            composable("vpnbook-handoff") {
-                VpnBookHandoffScreen(onBack = { navController.popBackStack() })
-            }
-            composable(
-                route = "renewal/{providerId}",
-                arguments = listOf(navArgument("providerId") { type = NavType.StringType }),
-            ) { entry ->
-                RenewalAssistantScreen(
-                    providerId = entry.arguments?.getString("providerId").orEmpty(),
-                    expiryRecord = null,
-                    onBack = { navController.popBackStack() },
-                    onOpenBrowser = { url ->
-                        navController.navigate("browser?url=${Uri.encode(url)}")
-                    },
-                    onOpenVpn = { navController.navigate("vpn") },
-                )
+                SettingsScreen()
             }
             composable(
                 route = "player?url={url}&title={title}&thumb={thumb}",

@@ -1,1 +1,1 @@
-Open-source video downloader, player, browser and WireGuard VPN. No ads.
+Open-source video downloader, player and browser with torrents. No ads.

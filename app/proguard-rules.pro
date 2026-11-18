@@ -18,12 +18,6 @@
 -dontwarn org.bouncycastle.**
 -dontwarn org.openjsse.**
 
-# WireGuard GoBackend registers JNI methods by name; keep the backend and crypto classes intact.
--keep class com.wireguard.android.backend.** { *; }
--keep class com.wireguard.crypto.** { *; }
--keep class com.wireguard.config.** { *; }
--dontwarn com.wireguard.**
-
 # bt (BitTorrent) wires its internals through Guice reflection; R8 must keep the graph intact.
 -keep class bt.** { *; }
 -keep class lbms.plugins.mldht.** { *; }

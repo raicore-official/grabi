@@ -15,8 +15,8 @@ android {
         applicationId = "com.raisoft.grabi"
         minSdk = 26
         targetSdk = 34
-        versionCode = 10
-        versionName = "0.5.0"
+        versionCode = 11
+        versionName = "0.5.1"
         vectorDrawables { useSupportLibrary = true }
         ndk {
             abiFilters += listOf("arm64-v8a", "armeabi-v7a", "x86_64", "x86")
@@ -110,7 +110,6 @@ dependencies {
     implementation(libs.coil.compose)
     implementation(libs.okhttp)
     implementation(libs.newpipe.extractor)
-    implementation(libs.wireguard.tunnel)
     implementation(libs.bt.core) { exclude(group = "com.google.inject", module = "guice") }
     implementation(libs.bt.dht) { exclude(group = "com.google.inject", module = "guice") }
     implementation(libs.bt.http.tracker.client) { exclude(group = "com.google.inject", module = "guice") }

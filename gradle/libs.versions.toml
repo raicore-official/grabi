@@ -19,7 +19,6 @@ coil = "2.7.0"
 okhttp = "4.12.0"
 desugar = "2.1.2"
 newpipe = "v0.27.1"
-wireguard = "1.0.20260102"
 appcompat = "1.7.0"
 webkit = "1.12.1"
 paparazzi = "1.3.4"
@@ -62,7 +61,6 @@ coil-compose = { group = "io.coil-kt", name = "coil-compose", version.ref = "coi
 okhttp = { group = "com.squareup.okhttp3", name = "okhttp", version.ref = "okhttp" }
 desugar-jdk-nio = { group = "com.android.tools", name = "desugar_jdk_libs_nio", version.ref = "desugar" }
 newpipe-extractor = { group = "com.github.TeamNewPipe", name = "NewPipeExtractor", version.ref = "newpipe" }
-wireguard-tunnel = { group = "com.wireguard.android", name = "tunnel", version.ref = "wireguard" }
 androidx-appcompat = { group = "androidx.appcompat", name = "appcompat", version.ref = "appcompat" }
 androidx-webkit = { group = "androidx.webkit", name = "webkit", version.ref = "webkit" }
 bt-core = { group = "com.github.atomashpolskiy", name = "bt-core", version.ref = "bt" }

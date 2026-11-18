@@ -29,9 +29,7 @@ Design renderings of the current UI (pixel-faithful HTML/CSS replicas of the Com
 - **Player** — Media3/ExoPlayer with background & screen-off playback, audio-only mode, captions, speed control, fullscreen, related videos, and a retry chain that refreshes expired stream links automatically. Reopening a video resumes exactly where you left off and keeps playing — position is persisted by the playback service itself, so it survives process death.
 - **Media notification** — play/pause/seek from the notification; tapping it returns to the app. Download notifications carry per-item Pause/Cancel/Resume/Retry plus a summary with Open / Pause all / Resume all.
 - **Browser** — tabs, incognito, site grid, video/audio/image/file detection sheet, and a Grabi-managed download queue for browser links including APKs and documents. Downloads use resumable queue processing, parallel range requests where supported, pause/resume/cancel controls and progress notifications instead of bypassing Grabi through the platform downloader. EasyList/EasyPrivacy/uBlock adblock with per-site allowlist and darkened pages.
-- **VPN** — WireGuard tunnels with config import, a country-organized community config finder (GitHub), handshake verification, kill switch (blackhole tunnel), split tunneling and always-on support.
-- **AutoBot** — opt-in automation that discovers, validates, ranks and (with full automation enabled) safely replaces VPN configurations: syntax/key/endpoint validation, duplicate detection, expiry tracking with conservative clock handling, scheduled renewal via WorkManager, handshake + connectivity verification before commit, rollback to the previous config or kill-switch protection on failure, and expiry notifications. Providers that require human verification (VPNBook's Cloudflare Turnstile) are never bypassed — AutoBot reports them honestly and offers an assisted in-app browser import instead.
-- **First-run setup** — branded loading screen, then optional permission onboarding: notifications, download folder (SAF), VPN consent and kill switch.
+- **First-run setup** — branded loading screen, then optional permission onboarding: notifications and download folder (SAF).
 - **Theme system** — System/Light/Dark with full Material 3 color roles, optional dynamic color, enforced by a CI color guard and both-mode screenshot tests.
 
 ## Architecture
@@ -40,13 +38,12 @@ Single-module Kotlin app, MVVM + repository pattern:
 
 ```
 ui/          Compose screens + ViewModels (StateFlow), single-activity navigation
-domain/      Pure Kotlin logic: link validation, format mapping, VPN config
-             parsing/validation, expiry calculation, candidate ranking,
-             AutoBot state machine (JVM-unit-testable, no Android deps)
-data/        Room (downloads, library), DataStore (settings, VPN, AutoBot),
+domain/      Pure Kotlin logic: link validation, format mapping
+             (JVM-unit-testable, no Android deps)
+data/        Room (downloads, library), DataStore (settings),
              yt-dlp engine, download manager/service, Media3 playback service,
-             NewPipe feed/stream repos, WebView browser, WireGuard backend,
-             AutoBot orchestrator + WorkManager workers + notifications
+             NewPipe feed/stream repos, WebView browser, bt torrent engine,
+             WorkManager workers + notifications
 ```
 
 Hilt for DI, WorkManager for background work (entry-point injection, no hilt-work), OkHttp everywhere, Coil for images.
@@ -81,7 +78,7 @@ The app landing page lives in [`website/`](website/). Deploy it to Vercel by imp
 
 ## Open-source libraries
 
-yt-dlp · youtubedl-android · NewPipeExtractor · AndroidX/Jetpack Compose · Media3 · Hilt · Room · DataStore · WorkManager · OkHttp · Coil · wireguard-android · Montserrat (SIL OFL, text in `licenses/`).
+yt-dlp · youtubedl-android · NewPipeExtractor · AndroidX/Jetpack Compose · Media3 · Hilt · Room · DataStore · WorkManager · OkHttp · Coil · Montserrat (SIL OFL, text in `licenses/`).
 
 ## License
 
@@ -103,12 +100,10 @@ yt-dlp · youtubedl-android · NewPipeExtractor · AndroidX/Jetpack Compose · M
 - **Background limits:** if the OS kills the app mid-download, the queue resumes on next launch. Some OEM battery killers still stop background audio.
 - **Player:** stream URLs are session-bound and expire; the retry chain re-resolves them, and a manual Retry is always available.
 - **Browser:** detection is extension/MIME-based; MSE/blob streams are not sniffed — use "Download this page". Adblock is network-level only.
-- **VPN:** community configs are untrusted — operators can see/log traffic and servers die without notice. Handshake verification mitigates but cannot make them safe; import your own config for real privacy. The kill switch protects while the app process is alive; for guaranteed no-leak use the system always-on VPN + lockdown (linked in-app).
-- **AutoBot / VPNBook:** VPNBook protects config generation with Cloudflare Turnstile. AutoBot does **not** automate that step and never bypasses human verification; it discovers servers, and imports configs you generate yourself (assisted browser handoff or paste), tracking their 7-day validity. GitHub community configs are fully automatable but carry the trust risks above. VPNBook allows one device per config — AutoBot disconnects the old tunnel before activating a replacement.
 - **GPL obligations:** distributing binaries requires offering source.
 
 ## Credits
 
 Original developer: **Raisul Islam** ([Raisulxislam](https://github.com/Raisulxislam)), Raisoft Studio — design, brand and implementation.
 
-yt-dlp · youtubedl-android (yausername / JunkFood02) · NewPipeExtractor (TeamNewPipe) · aria2 · FFmpeg · AndroidX/Jetpack (Google) · Dagger/Hilt (Google) · OkHttp (Square) · Coil · WireGuard · Outline (Jigsaw) · Brave adblock-rust · Montserrat (Julieta Ulanovsky et al.). Grabi is an independent project, not affiliated with VidMate or YouTube.
+yt-dlp · youtubedl-android (yausername / JunkFood02) · NewPipeExtractor (TeamNewPipe) · aria2 · FFmpeg · AndroidX/Jetpack (Google) · Dagger/Hilt (Google) · OkHttp (Square) · Coil · Brave adblock-rust · Montserrat (Julieta Ulanovsky et al.). Grabi is an independent project, not affiliated with VidMate or YouTube.

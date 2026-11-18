@@ -49,8 +49,6 @@ import java.util.Date
 
 @Composable
 fun SettingsScreen(
-    onOpenVpn: () -> Unit = {},
-    onOpenAutoBot: () -> Unit = {},
     viewModel: SettingsViewModel = hiltViewModel(),
 ) {
     val settings by viewModel.settings.collectAsStateWithLifecycle()
@@ -308,26 +306,6 @@ fun SettingsScreen(
                     verticalArrangement = Arrangement.spacedBy(8.dp),
                 ) {
                     Text(
-                        text = stringResource(R.string.settings_vpn),
-                        style = MaterialTheme.typography.titleMedium,
-                    )
-                    Text(
-                        text = stringResource(R.string.settings_vpn_summary),
-                        style = MaterialTheme.typography.bodySmall,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant,
-                    )
-                    TextButton(onClick = onOpenVpn) {
-                        Text(stringResource(R.string.settings_vpn_open))
-                    }
-                }
-            }
-
-            ElevatedCard(Modifier.fillMaxWidth()) {
-                Column(
-                    modifier = Modifier.padding(16.dp),
-                    verticalArrangement = Arrangement.spacedBy(8.dp),
-                ) {
-                    Text(
                         text = stringResource(R.string.settings_engine_title),
                         style = MaterialTheme.typography.titleMedium,
                     )
@@ -448,26 +426,6 @@ fun SettingsScreen(
                         },
                     ) {
                         Text(stringResource(R.string.settings_source))
-                    }
-                }
-            }
-
-            ElevatedCard(Modifier.fillMaxWidth()) {
-                Column(
-                    modifier = Modifier.padding(16.dp),
-                    verticalArrangement = Arrangement.spacedBy(8.dp),
-                ) {
-                    Text(
-                        text = stringResource(R.string.settings_autobot),
-                        style = MaterialTheme.typography.titleMedium,
-                    )
-                    Text(
-                        text = stringResource(R.string.settings_autobot_summary),
-                        style = MaterialTheme.typography.bodySmall,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant,
-                    )
-                    TextButton(onClick = onOpenAutoBot) {
-                        Text(stringResource(R.string.settings_autobot_open))
                     }
                 }
             }
