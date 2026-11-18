@@ -36,32 +36,37 @@ class DirectDownloader @Inject constructor(
         target: File,
         processId: String,
         onProgress: (percent: Float, etaSeconds: Long, line: String) -> Unit,
+        segments: Int = 6,
     ): File = withContext(Dispatchers.IO) {
-        val head = client.newCall(Request.Builder().url(url).head().build()).execute()
-        val total = head.header("Content-Length")?.toLongOrNull() ?: -1L
-        val rangeable = head.header("Accept-Ranges") == "bytes"
-        head.close()
-        if (!rangeable || total < 4_000_000L) {
+        val head = runCatching {
+            client.newCall(Request.Builder().url(url).head().build()).execute()
+        }.getOrNull()
+        val total = head?.header("Content-Length")?.toLongOrNull() ?: -1L
+        val rangeable = head?.header("Accept-Ranges") == "bytes"
+        head?.close()
+        val count = segments.coerceIn(1, 8)
+        if (!rangeable || total < 4_000_000L || count <= 1) {
             return@withContext download(url, target, processId, onProgress)
         }
         target.parentFile?.mkdirs()
         RandomAccessFile(target, "rw").use { it.setLength(total) }
-        val segments = 6
-        val chunk = total / segments
+        val chunk = total / count
         val copied = AtomicLong(0)
+        val progressLock = Any()
         var lastTimestamp = System.currentTimeMillis()
         var lastBytes = 0L
         try {
             coroutineScope {
-                (0 until segments).map { i ->
+                (0 until count).map { i ->
                     async {
                         val start = i * chunk
-                        val end = if (i == segments - 1) total - 1 else start + chunk - 1
+                        val end = if (i == count - 1) total - 1 else start + chunk - 1
                         val call = client.newCall(
                             Request.Builder().url(url).header("Range", "bytes=$start-$end").build(),
                         )
                         calls["$processId-$i"] = call
                         call.execute().use { response ->
+                            if (response.code != 206) throw RangeUnsupportedException()
                             if (!response.isSuccessful) throw IOException("HTTP ${response.code}")
                             val body = response.body ?: throw IOException("Empty response body")
                             RandomAccessFile(target, "rw").use { raf ->
@@ -74,22 +79,24 @@ class DirectDownloader @Inject constructor(
                                         if (read < 0) break
                                         raf.write(buffer, 0, read)
                                         val done = copied.addAndGet(read.toLong())
-                                        val now = System.currentTimeMillis()
-                                        if (now - lastTimestamp >= 500) {
-                                            val bytesPerSecond =
-                                                (done - lastBytes) * 1000.0 / (now - lastTimestamp)
-                                            lastTimestamp = now
-                                            lastBytes = done
-                                            val eta = if (bytesPerSecond > 0) {
-                                                ((total - done) / bytesPerSecond).toLong()
-                                            } else {
-                                                -1L
+                                        synchronized(progressLock) {
+                                            val now = System.currentTimeMillis()
+                                            if (now - lastTimestamp >= 500) {
+                                                val bytesPerSecond =
+                                                    (done - lastBytes) * 1000.0 / (now - lastTimestamp)
+                                                lastTimestamp = now
+                                                lastBytes = done
+                                                val eta = if (bytesPerSecond > 0) {
+                                                    ((total - done) / bytesPerSecond).toLong()
+                                                } else {
+                                                    -1L
+                                                }
+                                                onProgress(
+                                                    done * 100f / total,
+                                                    eta,
+                                                    "at ${formatSpeed(bytesPerSecond)}",
+                                                )
                                             }
-                                            onProgress(
-                                                done * 100f / total,
-                                                eta,
-                                                "at ${formatSpeed(bytesPerSecond)}",
-                                            )
                                         }
                                     }
                                 }
@@ -100,6 +107,9 @@ class DirectDownloader @Inject constructor(
             }
             onProgress(100f, 0L, "")
             target
+        } catch (e: RangeUnsupportedException) {
+            target.delete()
+            download(url, target, processId, onProgress)
         } catch (e: IOException) {
             if (calls.keys.any { it.startsWith(processId) && calls[it]?.isCanceled() == true }) {
                 throw CancellationException("Download canceled")
@@ -109,6 +119,8 @@ class DirectDownloader @Inject constructor(
             calls.keys.filter { it == processId || it.startsWith("$processId-") }.forEach { calls.remove(it) }
         }
     }
+
+    private class RangeUnsupportedException : IOException("Server ignored Range header")
 
     suspend fun download(
         url: String,

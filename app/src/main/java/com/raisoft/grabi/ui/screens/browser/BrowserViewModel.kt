@@ -82,9 +82,8 @@ class BrowserViewModel @Inject constructor(
         tabManager.onFileChooser = handler
     }
 
-    fun setDownloadHandler(handler: ((String) -> Unit)?) {
+    fun setDownloadHandler(handler: ((DownloadRequest) -> Unit)?) {
         tabManager.onDownload = { url, _, contentDisposition, mimeType ->
-            handler?.invoke(url)
             val kind = MediaSniffer.classify(url, mimeType) ?: MediaKind.FILE
             val title = contentDisposition
                 ?.substringAfter("filename=", "")
@@ -99,9 +98,37 @@ class BrowserViewModel @Inject constructor(
                 audioFormat = null,
                 sizeBytes = null,
             )
-            viewModelScope.launch {
-                downloadManager.enqueue(url, title, option, false)
-            }
+            handler?.invoke(DownloadRequest(url, title, kind, null, option))
+        }
+    }
+
+    fun requestFor(media: DetectedMedia): DownloadRequest {
+        val title = media.url.substringBefore('?').substringAfterLast('/').ifBlank { "media" }
+        val option = when (media.kind) {
+            MediaKind.IMAGE ->
+                MediaOption("image", "Image", MediaKind.IMAGE, media.url, null, media.sizeBytes)
+            MediaKind.VIDEO ->
+                MediaOption(
+                    "best", "Video", MediaKind.VIDEO,
+                    MediaFormatMapper.AVC_VIDEO_SELECTOR, null, null,
+                )
+            MediaKind.AUDIO ->
+                MediaOption("audio", "Audio", MediaKind.AUDIO, "bestaudio/best", "m4a", null)
+            MediaKind.FILE ->
+                MediaOption("file", "File", MediaKind.FILE, media.url, null, media.sizeBytes)
+        }
+        return DownloadRequest(media.url, title, media.kind, media.sizeBytes, option)
+    }
+
+    fun enqueue(request: DownloadRequest) {
+        viewModelScope.launch {
+            downloadManager.enqueue(
+                request.url,
+                request.title,
+                request.option,
+                false,
+                thumbnailUrl = if (request.kind == MediaKind.IMAGE) request.url else null,
+            )
         }
     }
 
@@ -118,23 +145,7 @@ class BrowserViewModel @Inject constructor(
         tabManager.loadUrl(url)
     }
 
-    fun downloadDetected(media: DetectedMedia) {
-        val title = media.url.substringBefore('?').substringAfterLast('/').ifBlank { "media" }
-        val option = when (media.kind) {
-            MediaKind.IMAGE ->
-                MediaOption("image", "Image", MediaKind.IMAGE, media.url, null, media.sizeBytes)
-            MediaKind.VIDEO ->
-                MediaOption(
-                    "best", "Video", MediaKind.VIDEO,
-                    MediaFormatMapper.AVC_VIDEO_SELECTOR, null, null,
-                )
-            MediaKind.AUDIO ->
-                MediaOption("audio", "Audio", MediaKind.AUDIO, "bestaudio/best", "m4a", null)
-            MediaKind.FILE ->
-                MediaOption("file", "File", MediaKind.FILE, media.url, null, media.sizeBytes)
-        }
-        viewModelScope.launch { downloadManager.enqueue(media.url, title, option, false) }
-    }
+    fun downloadDetected(media: DetectedMedia) = enqueue(requestFor(media))
 
     val downloadStates: kotlinx.coroutines.flow.StateFlow<Map<String, com.raisoft.grabi.data.db.DownloadEntity>> =
         downloadManager.statesByKey()
@@ -175,3 +186,11 @@ class BrowserViewModel @Inject constructor(
         viewModelScope.launch { historyRepository.clearHistory() }
     }
 }
+
+data class DownloadRequest(
+    val url: String,
+    val title: String,
+    val kind: MediaKind,
+    val sizeBytes: Long?,
+    val option: MediaOption,
+)

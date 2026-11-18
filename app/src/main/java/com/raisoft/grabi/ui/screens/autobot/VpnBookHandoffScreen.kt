@@ -2,21 +2,22 @@ package com.raisoft.grabi.ui.screens.autobot
 
 import android.webkit.WebView
 import android.webkit.WebViewClient
+import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
-import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.rememberScrollState
-import androidx.compose.foundation.verticalScroll
+import androidx.compose.foundation.layout.systemBarsPadding
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.rounded.ArrowBack
 import androidx.compose.material3.Button
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
@@ -27,11 +28,14 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.viewinterop.AndroidView
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import androidx.webkit.WebSettingsCompat
+import androidx.webkit.WebViewFeature
 import com.raisoft.grabi.R
 import com.raisoft.grabi.data.vpn.autobot.VpnBookSource
 import org.json.JSONTokener
@@ -43,6 +47,7 @@ fun VpnBookHandoffScreen(
 ) {
     var webView by remember { mutableStateOf<WebView?>(null) }
     var pasteText by remember { mutableStateOf("") }
+    var showPaste by remember { mutableStateOf(false) }
     var message by remember { mutableStateOf<String?>(null) }
     val importResult by viewModel.importResult.collectAsStateWithLifecycle()
     val notFound = stringResource(R.string.vpnbook_not_found)
@@ -65,9 +70,9 @@ fun VpnBookHandoffScreen(
     Column(
         modifier = Modifier
             .fillMaxSize()
-            .verticalScroll(rememberScrollState())
-            .padding(16.dp),
-        verticalArrangement = Arrangement.spacedBy(12.dp),
+            .systemBarsPadding()
+            .padding(horizontal = 12.dp, vertical = 8.dp),
+        verticalArrangement = Arrangement.spacedBy(8.dp),
     ) {
         Row(verticalAlignment = Alignment.CenterVertically) {
             IconButton(onClick = onBack) {
@@ -75,7 +80,7 @@ fun VpnBookHandoffScreen(
             }
             Text(
                 text = stringResource(R.string.vpnbook_handoff_title),
-                style = MaterialTheme.typography.titleLarge,
+                style = MaterialTheme.typography.titleMedium,
             )
         }
         Text(
@@ -88,6 +93,14 @@ fun VpnBookHandoffScreen(
                 WebView(context).apply {
                     settings.javaScriptEnabled = true
                     settings.domStorageEnabled = true
+                    settings.setSupportZoom(true)
+                    settings.builtInZoomControls = true
+                    settings.displayZoomControls = false
+                    settings.useWideViewPort = true
+                    settings.loadWithOverviewMode = true
+                    if (WebViewFeature.isFeatureSupported(WebViewFeature.ALGORITHMIC_DARKENING)) {
+                        WebSettingsCompat.setAlgorithmicDarkeningAllowed(settings, true)
+                    }
                     webViewClient = WebViewClient()
                     loadUrl(VpnBookSource.PAGE_URL)
                 }
@@ -95,35 +108,52 @@ fun VpnBookHandoffScreen(
             update = { webView = it },
             modifier = Modifier
                 .fillMaxWidth()
-                .height(420.dp),
+                .weight(1f)
+                .clip(RoundedCornerShape(14.dp)),
         )
-        Button(
-            onClick = {
-                probeGeneratedConfig(webView) { text ->
-                    if (text != null) {
-                        viewModel.importAssisted(text, "vpnbook")
-                    } else {
-                        message = notFound
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.spacedBy(8.dp),
+        ) {
+            Button(
+                onClick = {
+                    probeGeneratedConfig(webView) { text ->
+                        if (text != null) {
+                            viewModel.importAssisted(text, "vpnbook")
+                        } else {
+                            message = notFound
+                        }
                     }
-                }
-            },
-            modifier = Modifier.fillMaxWidth(),
-        ) {
-            Text(stringResource(R.string.vpnbook_import_generated))
+                },
+                modifier = Modifier.weight(1f),
+            ) {
+                Text(stringResource(R.string.vpnbook_import_generated), maxLines = 1)
+            }
+            OutlinedButton(
+                onClick = { showPaste = !showPaste },
+                modifier = Modifier.weight(1f),
+            ) {
+                Text(stringResource(R.string.vpnbook_paste_label), maxLines = 1)
+            }
         }
-        OutlinedTextField(
-            value = pasteText,
-            onValueChange = { pasteText = it },
-            modifier = Modifier.fillMaxWidth(),
-            minLines = 3,
-            label = { Text(stringResource(R.string.vpnbook_paste_label)) },
-        )
-        Button(
-            onClick = { viewModel.importAssisted(pasteText, "vpnbook") },
-            enabled = pasteText.isNotBlank(),
-            modifier = Modifier.fillMaxWidth(),
-        ) {
-            Text(stringResource(R.string.vpnbook_import_paste))
+        AnimatedVisibility(visible = showPaste) {
+            Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                OutlinedTextField(
+                    value = pasteText,
+                    onValueChange = { pasteText = it },
+                    modifier = Modifier.fillMaxWidth(),
+                    minLines = 2,
+                    maxLines = 4,
+                    label = { Text(stringResource(R.string.vpnbook_paste_label)) },
+                )
+                Button(
+                    onClick = { viewModel.importAssisted(pasteText, "vpnbook") },
+                    enabled = pasteText.isNotBlank(),
+                    modifier = Modifier.fillMaxWidth(),
+                ) {
+                    Text(stringResource(R.string.vpnbook_import_paste))
+                }
+            }
         }
         message?.let {
             Text(

@@ -40,6 +40,7 @@ import kotlinx.coroutines.delay
 import kotlinx.coroutines.isActive
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.runBlocking
+import kotlinx.coroutines.withContext
 import okhttp3.OkHttpClient
 
 @OptIn(UnstableApi::class)
@@ -106,7 +107,14 @@ class PlaybackService : MediaSessionService() {
         serviceScope.launch {
             while (isActive) {
                 delay(5_000)
-                if (player.isPlaying) persistPosition()
+                // ExoPlayer getters assert the application thread; read them on Main only.
+                val snapshot = withContext(Dispatchers.Main) {
+                    val page = currentPageUrl
+                    if (page != null && player.isPlaying) page to player.currentPosition else null
+                }
+                if (snapshot != null && snapshot.second > 0) {
+                    savePosition(snapshot.first, snapshot.second)
+                }
             }
         }
     }
@@ -133,6 +141,10 @@ class PlaybackService : MediaSessionService() {
         val page = currentPageUrl ?: return
         val position = if (reset) 0L else session?.player?.currentPosition ?: return
         if (!reset && position <= 0) return
+        savePosition(page, position)
+    }
+
+    private fun savePosition(page: String, position: Long) {
         serviceScope.launch {
             runCatching { libraryDao.updatePosition(page, position, System.currentTimeMillis()) }
         }

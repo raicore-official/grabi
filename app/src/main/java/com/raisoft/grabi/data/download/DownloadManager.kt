@@ -287,11 +287,12 @@ class DownloadManager @Inject constructor(
                 }
                 val file = if (option.kind == MediaKind.IMAGE || option.kind == MediaKind.FILE) {
                     val outputDir = File(context.getExternalFilesDir(null), "Grabi").apply { mkdirs() }
-                    directDownloader.download(
+                    directDownloader.downloadRanges(
                         entity.url,
                         File(outputDir, fileName(entity.title, entity.url, option.kind)),
                         entity.id,
                         onProgress,
+                        parallelism,
                     )
                 } else if (cachedOption != null) {
                     DebugLog.line("download ${entity.id} starting from cached stream (no re-extraction)")
@@ -302,6 +303,7 @@ class DownloadManager @Inject constructor(
                         File(outputDir, imageFileName(entity.title, entity.url).substringBeforeLast('.') + ".$ext"),
                         entity.id,
                         onProgress,
+                        parallelism,
                     )
                 } else {
                     engine.download(entity.url, option, entity.subtitles, entity.id, onProgress)

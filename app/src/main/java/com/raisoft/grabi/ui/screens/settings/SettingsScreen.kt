@@ -264,30 +264,6 @@ fun SettingsScreen(
                                 color = MaterialTheme.colorScheme.onSurfaceVariant,
                             )
                         }
-
-                        ElevatedCard(Modifier.fillMaxWidth()) {
-                            Column(
-                                modifier = Modifier.padding(16.dp),
-                                verticalArrangement = Arrangement.spacedBy(10.dp),
-                            ) {
-                                Text("Support Grabi", style = MaterialTheme.typography.titleMedium)
-                                Text(
-                                    "If Grabi helps you, support open-source development.",
-                                    style = MaterialTheme.typography.bodySmall,
-                                    color = MaterialTheme.colorScheme.onSurfaceVariant,
-                                )
-                                Text("Bangladesh · bKash / CellFin: +8801993827228")
-                                Text("Worldwide · Binance Pay ID: 1190183267")
-                                Text("USDT TRC20: TBLpr6MeFJdqzxw7BVhLkDNDQAv18KezNi")
-                                TextButton(onClick = {
-                                    val text = "Grabi support\nbKash / CellFin: +8801993827228\nBinance Pay ID: 1190183267\nUSDT TRC20: TBLpr6MeFJdqzxw7BVhLkDNDQAv18KezNi"
-                                    val clipboard = context.getSystemService(android.content.ClipboardManager::class.java)
-                                    clipboard?.setPrimaryClip(android.content.ClipData.newPlainText("Grabi support", text))
-                                }) {
-                                    Text("Copy payment details")
-                                }
-                            }
-                        }
                         Switch(
                             checked = settings.adblockEnabled,
                             onCheckedChange = viewModel::setAdblockEnabled,
@@ -492,6 +468,39 @@ fun SettingsScreen(
                     )
                     TextButton(onClick = onOpenAutoBot) {
                         Text(stringResource(R.string.settings_autobot_open))
+                    }
+                }
+            }
+
+            ElevatedCard(Modifier.fillMaxWidth()) {
+                Column(
+                    modifier = Modifier.padding(16.dp),
+                    verticalArrangement = Arrangement.spacedBy(10.dp),
+                ) {
+                    Text("Support Grabi", style = MaterialTheme.typography.titleMedium)
+                    Text(
+                        "If Grabi helps you, support open-source development.",
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    )
+                    Text(
+                        "Bangladesh · bKash / CellFin: +8801993827228",
+                        style = MaterialTheme.typography.bodyMedium,
+                    )
+                    Text(
+                        "Worldwide · Binance Pay ID: 1190183267",
+                        style = MaterialTheme.typography.bodyMedium,
+                    )
+                    Text(
+                        "USDT TRC20: TBLpr6MeFJdqzxw7BVhLkDNDQAv18KezNi",
+                        style = MaterialTheme.typography.bodyMedium,
+                    )
+                    TextButton(onClick = {
+                        val text = "Grabi support\nbKash / CellFin: +8801993827228\nBinance Pay ID: 1190183267\nUSDT TRC20: TBLpr6MeFJdqzxw7BVhLkDNDQAv18KezNi"
+                        val clipboard = context.getSystemService(android.content.ClipboardManager::class.java)
+                        clipboard?.setPrimaryClip(android.content.ClipData.newPlainText("Grabi support", text))
+                    }) {
+                        Text("Copy payment details")
                     }
                 }
             }

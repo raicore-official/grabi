@@ -1,9 +1,9 @@
 package com.raisoft.grabi.ui.screens.browser
 
+import android.media.MediaMetadataRetriever
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.background
-import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.isSystemInDarkTheme
 import androidx.compose.foundation.layout.Arrangement
@@ -11,14 +11,16 @@ import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.aspectRatio
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.heightIn
+import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.statusBarsPadding
 import androidx.compose.foundation.layout.width
-import androidx.compose.foundation.layout.systemBarsPadding
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.grid.GridCells
 import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
@@ -26,6 +28,7 @@ import androidx.compose.foundation.lazy.grid.items
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.text.BasicTextField
 import androidx.compose.foundation.text.KeyboardActions
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material.icons.Icons
@@ -38,6 +41,7 @@ import androidx.compose.material.icons.rounded.Lock
 import androidx.compose.material.icons.rounded.Download
 import androidx.compose.material.icons.rounded.Check
 import androidx.compose.foundation.combinedClickable
+import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.CircularProgressIndicator
 import com.raisoft.grabi.data.db.DownloadEntity
 import com.raisoft.grabi.domain.VideoIds
@@ -63,7 +67,6 @@ import androidx.compose.material3.LinearProgressIndicator
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.ModalBottomSheet
 import androidx.compose.material3.OutlinedButton
-import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
@@ -72,12 +75,17 @@ import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.key
 import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.produceState
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.SolidColor
+import androidx.compose.ui.graphics.asImageBitmap
+import androidx.compose.ui.graphics.ImageBitmap
 import androidx.compose.ui.graphics.toArgb
+import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalSoftwareKeyboardController
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
@@ -90,6 +98,7 @@ import androidx.compose.ui.viewinterop.AndroidView
 import android.widget.Toast
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import coil.compose.AsyncImage
 import com.raisoft.grabi.R
 import com.raisoft.grabi.data.browser.BrowserHistoryRepository
 import com.raisoft.grabi.data.browser.TabManager
@@ -97,6 +106,8 @@ import com.raisoft.grabi.domain.model.DetectedMedia
 import com.raisoft.grabi.domain.model.MediaKind
 import com.raisoft.grabi.ui.theme.resolveDark
 import java.net.URI
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.withContext
 
 private data class Site(val name: String, val url: String)
 
@@ -141,71 +152,60 @@ fun BrowserScreen(
     LaunchedEffect(initialUrl) {
         viewModel.openInitialUrl(initialUrl)
     }
-    LaunchedEffect(Unit) {
-        viewModel.setFileChooserHandler { params ->
-            fileLauncher.launch(
-                params.acceptTypes.filter { it.isNotBlank() }.ifEmpty { listOf("*/*") }.toTypedArray(),
-            )
-        }
-        viewModel.setDownloadHandler {
-            Toast.makeText(context, "Download started", Toast.LENGTH_SHORT).show()
-        }
-    }
-
     var urlInput by remember(active?.id) { mutableStateOf(active?.url ?: "") }
     var showTabs by remember { mutableStateOf(false) }
     var showDetected by remember { mutableStateOf(false) }
     var detectedSection by remember { mutableStateOf(0) }
     var showHistory by remember { mutableStateOf(false) }
     var showMenu by remember { mutableStateOf(false) }
+    var preview by remember { mutableStateOf<DownloadRequest?>(null) }
 
     val activeHost = remember(active?.url) {
         active?.url?.let { runCatching { URI(it).host }.getOrNull() }?.lowercase()
     }
     val siteAllowlisted = activeHost != null && activeHost in settings.adblockAllowlist
 
+    LaunchedEffect(Unit) {
+        viewModel.setFileChooserHandler { params ->
+            fileLauncher.launch(
+                params.acceptTypes.filter { it.isNotBlank() }.ifEmpty { listOf("*/*") }.toTypedArray(),
+            )
+        }
+        viewModel.setDownloadHandler { request -> preview = request }
+    }
+
     Box(
         modifier = Modifier
             .fillMaxSize()
-            .systemBarsPadding()
-            .border(1.dp, MaterialTheme.colorScheme.outlineVariant, RoundedCornerShape(18.dp))
-            .clip(RoundedCornerShape(18.dp)),
+            .background(MaterialTheme.colorScheme.background),
         contentAlignment = Alignment.TopStart,
     ) {
         Column(Modifier.fillMaxSize()) {
             Row(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .background(MaterialTheme.colorScheme.surface.copy(alpha = 0.96f))
-                    .padding(horizontal = 6.dp, vertical = 6.dp),
+                    .statusBarsPadding()
+                    .background(MaterialTheme.colorScheme.surface)
+                    .padding(horizontal = 4.dp, vertical = 6.dp),
                 verticalAlignment = Alignment.CenterVertically,
             ) {
-                IconButton(
-                    onClick = viewModel::goBack,
-                    enabled = active?.canGoBack == true,
-                ) {
+                IconButton(onClick = onClose) {
                     Icon(
                         Icons.AutoMirrored.Rounded.ArrowBack,
-                        contentDescription = stringResource(R.string.browser_back),
+                        contentDescription = stringResource(R.string.browser_back_to_app),
                     )
                 }
-                IconButton(
-                    onClick = viewModel::goForward,
-                    enabled = active?.canGoForward == true,
+                Surface(
+                    shape = RoundedCornerShape(22.dp),
+                    color = MaterialTheme.colorScheme.surfaceContainerHigh,
+                    modifier = Modifier
+                        .weight(1f)
+                        .heightIn(min = 42.dp),
                 ) {
-                    Icon(
-                        Icons.AutoMirrored.Rounded.ArrowForward,
-                        contentDescription = stringResource(R.string.browser_forward),
-                    )
-                }
-                OutlinedTextField(
-                    value = urlInput,
-                    onValueChange = { urlInput = it },
-                    modifier = Modifier.weight(1f),
-                    singleLine = true,
-                    textStyle = MaterialTheme.typography.bodySmall,
-                    placeholder = { Text(stringResource(R.string.browser_url_hint)) },
-                    leadingIcon = {
+                    Row(
+                        verticalAlignment = Alignment.CenterVertically,
+                        modifier = Modifier.padding(horizontal = 12.dp, vertical = 8.dp),
+                    ) {
                         Icon(
                             if (active?.url?.startsWith("https://") == true) {
                                 Icons.Rounded.Lock
@@ -213,33 +213,45 @@ fun BrowserScreen(
                                 Icons.Rounded.Tab
                             },
                             contentDescription = null,
+                            tint = MaterialTheme.colorScheme.onSurfaceVariant,
+                            modifier = Modifier.size(14.dp),
                         )
-                    },
-                    keyboardOptions = KeyboardOptions(
-                        keyboardType = KeyboardType.Uri,
-                        imeAction = ImeAction.Go,
-                    ),
-                    keyboardActions = KeyboardActions(
-                        onGo = {
-                            viewModel.submitUrl(urlInput)
-                            keyboard?.hide()
-                        },
-                    ),
-                )
-                IconButton(onClick = { showTabs = true }) {
-                    BadgedBox(
-                        badge = {
-                            Badge { Text("${tabs.size}") }
-                        },
-                    ) {
-                        Icon(
-                            Icons.Rounded.Tab,
-                            contentDescription = stringResource(R.string.browser_tabs),
+                        Spacer(Modifier.width(8.dp))
+                        BasicTextField(
+                            value = urlInput,
+                            onValueChange = { urlInput = it },
+                            singleLine = true,
+                            textStyle = MaterialTheme.typography.bodyMedium.copy(
+                                color = MaterialTheme.colorScheme.onSurface,
+                            ),
+                            cursorBrush = SolidColor(MaterialTheme.colorScheme.primary),
+                            keyboardOptions = KeyboardOptions(
+                                keyboardType = KeyboardType.Uri,
+                                imeAction = ImeAction.Go,
+                            ),
+                            keyboardActions = KeyboardActions(
+                                onGo = {
+                                    viewModel.submitUrl(urlInput)
+                                    keyboard?.hide()
+                                },
+                            ),
+                            modifier = Modifier.weight(1f),
+                            decorationBox = { innerTextField ->
+                                Box {
+                                    if (urlInput.isEmpty()) {
+                                        Text(
+                                            text = stringResource(R.string.browser_url_hint),
+                                            style = MaterialTheme.typography.bodyMedium,
+                                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                            maxLines = 1,
+                                            overflow = TextOverflow.Ellipsis,
+                                        )
+                                    }
+                                    innerTextField()
+                                }
+                            },
                         )
                     }
-                }
-                IconButton(onClick = onClose) {
-                    Icon(Icons.Rounded.Close, contentDescription = "Close Grabi Browser")
                 }
                 Box {
                     IconButton(onClick = { showMenu = true }) {
@@ -353,27 +365,66 @@ fun BrowserScreen(
                             factory = { engine.view },
                             modifier = Modifier
                                 .fillMaxWidth()
-                                .weight(1f)
-                                .clip(RoundedCornerShape(bottomStart = 18.dp, bottomEnd = 18.dp)),
+                                .weight(1f),
                         )
                     }
-                    Surface(
-                        tonalElevation = 2.dp,
-                        modifier = Modifier.fillMaxWidth(),
+                } else {
+                    Spacer(Modifier.weight(1f))
+                }
+            }
+            Surface(
+                tonalElevation = 3.dp,
+                modifier = Modifier.fillMaxWidth(),
+            ) {
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .navigationBarsPadding()
+                        .padding(horizontal = 8.dp, vertical = 2.dp),
+                    verticalAlignment = Alignment.CenterVertically,
+                ) {
+                    IconButton(
+                        onClick = { viewModel.openTab(incognito = false) },
+                        modifier = Modifier.weight(1f),
                     ) {
-                        Row(
-                            modifier = Modifier.padding(horizontal = 12.dp, vertical = 4.dp),
-                            verticalAlignment = Alignment.CenterVertically,
-                            horizontalArrangement = Arrangement.spacedBy(8.dp),
+                        Icon(
+                            Icons.Rounded.Home,
+                            contentDescription = stringResource(R.string.browser_home),
+                        )
+                    }
+                    IconButton(
+                        onClick = viewModel::goBack,
+                        enabled = active?.canGoBack == true,
+                        modifier = Modifier.weight(1f),
+                    ) {
+                        Icon(
+                            Icons.AutoMirrored.Rounded.ArrowBack,
+                            contentDescription = stringResource(R.string.browser_back),
+                        )
+                    }
+                    IconButton(
+                        onClick = viewModel::goForward,
+                        enabled = active?.canGoForward == true,
+                        modifier = Modifier.weight(1f),
+                    ) {
+                        Icon(
+                            Icons.AutoMirrored.Rounded.ArrowForward,
+                            contentDescription = stringResource(R.string.browser_forward),
+                        )
+                    }
+                    IconButton(
+                        onClick = { showTabs = true },
+                        modifier = Modifier.weight(1f),
+                    ) {
+                        BadgedBox(
+                            badge = {
+                                Badge { Text("${tabs.size}") }
+                            },
                         ) {
-                            Icon(Icons.Rounded.Home, contentDescription = null, modifier = Modifier.size(16.dp))
-                            Text("Grabi Browser", style = MaterialTheme.typography.labelMedium)
-                            Spacer(Modifier.weight(1f))
-                            if (active?.url?.startsWith("https://") == true) {
-                                Icon(Icons.Rounded.Lock, contentDescription = "Secure HTTPS", modifier = Modifier.size(16.dp))
-                                Text("Secure", style = MaterialTheme.typography.labelSmall)
-                            }
-                            TextButton(onClick = onClose) { Text("Return to Grabi") }
+                            Icon(
+                                Icons.Rounded.Tab,
+                                contentDescription = stringResource(R.string.browser_tabs),
+                            )
                         }
                     }
                 }
@@ -385,7 +436,8 @@ fun BrowserScreen(
                 color = MaterialTheme.colorScheme.surfaceVariant,
                 modifier = Modifier
                     .align(Alignment.TopEnd)
-                    .padding(top = 64.dp, end = 12.dp),
+                    .statusBarsPadding()
+                    .padding(top = 60.dp, end = 12.dp),
             ) {
                 Row(
                     modifier = Modifier.padding(horizontal = 10.dp, vertical = 6.dp),
@@ -408,7 +460,8 @@ fun BrowserScreen(
             onClick = { showDetected = true },
             modifier = Modifier
                 .align(Alignment.BottomEnd)
-                .padding(start = 16.dp, end = 16.dp, top = 16.dp, bottom = 96.dp),
+                .navigationBarsPadding()
+                .padding(end = 16.dp, bottom = 64.dp),
         ) {
             BadgedBox(
                 badge = {
@@ -572,7 +625,7 @@ fun BrowserScreen(
                                 download = downloadStates["${VideoIds.of(media.url)}:${media.kind.name}"],
                                 onPauseResume = { viewModel.pauseResumeDownload(it.id) },
                                 onDelete = { viewModel.deleteDownload(it.id) },
-                            ) { viewModel.downloadDetected(media) }
+                            ) { preview = viewModel.requestFor(media) }
                             }
                         }
                     }
@@ -593,7 +646,7 @@ fun BrowserScreen(
                                 download = downloadStates["${VideoIds.of(media.url)}:${media.kind.name}"],
                                 onPauseResume = { viewModel.pauseResumeDownload(it.id) },
                                 onDelete = { viewModel.deleteDownload(it.id) },
-                            ) { viewModel.downloadDetected(media) }
+                            ) { preview = viewModel.requestFor(media) }
                         }
                     }
                 }
@@ -644,6 +697,144 @@ fun BrowserScreen(
             }
         }
     }
+
+    preview?.let { request ->
+        DownloadPreviewDialog(
+            request = request,
+            onConfirm = {
+                viewModel.enqueue(request)
+                preview = null
+                Toast.makeText(context, "Download started", Toast.LENGTH_SHORT).show()
+            },
+            onDismiss = { preview = null },
+        )
+    }
+}
+
+@Composable
+private fun DownloadPreviewDialog(
+    request: DownloadRequest,
+    onConfirm: () -> Unit,
+    onDismiss: () -> Unit,
+) {
+    val scheme = MaterialTheme.colorScheme
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        confirmButton = {
+            Button(onClick = onConfirm) {
+                Icon(Icons.Rounded.Download, contentDescription = null, modifier = Modifier.size(18.dp))
+                Spacer(Modifier.width(8.dp))
+                Text(stringResource(R.string.browser_download))
+            }
+        },
+        dismissButton = {
+            TextButton(onClick = onDismiss) {
+                Text(stringResource(R.string.action_cancel))
+            }
+        },
+        title = {
+            Text(
+                text = request.title,
+                style = MaterialTheme.typography.titleMedium,
+                maxLines = 2,
+                overflow = TextOverflow.Ellipsis,
+            )
+        },
+        text = {
+            Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
+                Box(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .aspectRatio(16f / 9f)
+                        .clip(RoundedCornerShape(12.dp))
+                        .background(scheme.surfaceVariant),
+                    contentAlignment = Alignment.Center,
+                ) {
+                    when (request.kind) {
+                        MediaKind.IMAGE -> AsyncImage(
+                            model = request.url,
+                            contentDescription = request.title,
+                            contentScale = ContentScale.Crop,
+                            modifier = Modifier.fillMaxSize(),
+                        )
+                        MediaKind.VIDEO -> {
+                            val frame by rememberVideoFrame(request.url)
+                            val bitmap = frame
+                            if (bitmap != null) {
+                                androidx.compose.foundation.Image(
+                                    bitmap = bitmap,
+                                    contentDescription = request.title,
+                                    contentScale = ContentScale.Crop,
+                                    modifier = Modifier.fillMaxSize(),
+                                )
+                            } else {
+                                Icon(
+                                    Icons.Rounded.VideoFile,
+                                    contentDescription = null,
+                                    tint = scheme.onSurfaceVariant,
+                                    modifier = Modifier.size(40.dp),
+                                )
+                            }
+                        }
+                        MediaKind.AUDIO -> Icon(
+                            Icons.Rounded.Audiotrack,
+                            contentDescription = null,
+                            tint = scheme.onSurfaceVariant,
+                            modifier = Modifier.size(40.dp),
+                        )
+                        MediaKind.FILE -> Icon(
+                            Icons.Rounded.InsertDriveFile,
+                            contentDescription = null,
+                            tint = scheme.onSurfaceVariant,
+                            modifier = Modifier.size(40.dp),
+                        )
+                    }
+                }
+                Text(
+                    text = buildString {
+                        append(request.kind.name.lowercase().replaceFirstChar { it.uppercase() })
+                        request.sizeBytes?.takeIf { it > 0 }?.let {
+                            append(" · ")
+                            append(formatBytes(it))
+                        }
+                    },
+                    style = MaterialTheme.typography.labelMedium,
+                    color = scheme.onSurfaceVariant,
+                )
+                Text(
+                    text = request.url,
+                    style = MaterialTheme.typography.bodySmall,
+                    color = scheme.onSurfaceVariant,
+                    maxLines = 2,
+                    overflow = TextOverflow.Ellipsis,
+                )
+            }
+        },
+    )
+}
+
+@Composable
+private fun rememberVideoFrame(url: String): androidx.compose.runtime.State<ImageBitmap?> =
+    produceState<ImageBitmap?>(initialValue = null, url) {
+        value = withContext(Dispatchers.IO) {
+            runCatching {
+                val retriever = MediaMetadataRetriever()
+                try {
+                    retriever.setDataSource(url)
+                    retriever.getFrameAtTime(1_000_000, MediaMetadataRetriever.OPTION_CLOSEST_SYNC)
+                        ?.asImageBitmap()
+                } finally {
+                    retriever.release()
+                }
+            }.getOrNull()
+        }
+    }
+
+private fun formatBytes(bytes: Long): String = when {
+    bytes >= 1_073_741_824 -> "%.1f GB".format(bytes / 1_073_741_824.0)
+    bytes >= 1_048_576 -> "%.1f MB".format(bytes / 1_048_576.0)
+    bytes >= 1_024 -> "%.0f KB".format(bytes / 1_024.0)
+    else -> "$bytes B"
 }
 
 @Composable

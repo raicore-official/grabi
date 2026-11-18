@@ -40,6 +40,7 @@ import com.raisoft.grabi.R
 import com.raisoft.grabi.data.db.DownloadEntity
 import com.raisoft.grabi.domain.DownloadFilter
 import com.raisoft.grabi.domain.model.DownloadStatus
+import com.raisoft.grabi.domain.model.MediaKind
 import com.raisoft.grabi.ui.components.EmptyState
 import com.raisoft.grabi.ui.formatDuration
 import com.raisoft.grabi.ui.theme.onVideo
@@ -105,18 +106,20 @@ private fun DownloadRow(
             modifier = Modifier.padding(16.dp),
             verticalArrangement = Arrangement.spacedBy(8.dp),
         ) {
-            AsyncImage(
-                model = entity.thumbnailUrl ?: R.drawable.grabi_home_thumbnail,
-                contentDescription = null,
-                contentScale = ContentScale.Crop,
-                placeholder = painterResource(R.drawable.grabi_home_thumbnail),
-                error = painterResource(R.drawable.grabi_home_thumbnail),
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .aspectRatio(16f / 9f)
-                    .clip(MaterialTheme.shapes.medium)
-                    .background(MaterialTheme.colorScheme.surfaceVariant),
-            )
+            if (entity.kind != MediaKind.FILE.name) {
+                AsyncImage(
+                    model = entity.thumbnailUrl ?: R.drawable.grabi_home_thumbnail,
+                    contentDescription = null,
+                    contentScale = ContentScale.Crop,
+                    placeholder = painterResource(R.drawable.grabi_home_thumbnail),
+                    error = painterResource(R.drawable.grabi_home_thumbnail),
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .aspectRatio(16f / 9f)
+                        .clip(MaterialTheme.shapes.medium)
+                        .background(MaterialTheme.colorScheme.surfaceVariant),
+                )
+            }
             Text(
                 text = entity.title,
                 style = MaterialTheme.typography.titleSmall,

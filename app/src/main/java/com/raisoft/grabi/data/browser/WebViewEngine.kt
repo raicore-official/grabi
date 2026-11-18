@@ -108,7 +108,20 @@ class WebViewEngine(
     }
 
     fun applyTheme(dark: Boolean, backgroundArgb: Int) {
-        WebSettingsCompat.setAlgorithmicDarkeningAllowed(view.settings, dark)
+        when {
+            androidx.webkit.WebViewFeature.isFeatureSupported(
+                androidx.webkit.WebViewFeature.ALGORITHMIC_DARKENING,
+            ) -> WebSettingsCompat.setAlgorithmicDarkeningAllowed(view.settings, dark)
+            androidx.webkit.WebViewFeature.isFeatureSupported(
+                androidx.webkit.WebViewFeature.FORCE_DARK,
+            ) -> {
+                @Suppress("DEPRECATION")
+                WebSettingsCompat.setForceDark(
+                    view.settings,
+                    if (dark) WebSettings.FORCE_DARK_ON else WebSettings.FORCE_DARK_OFF,
+                )
+            }
+        }
         view.setBackgroundColor(backgroundArgb)
     }
 

@@ -34,6 +34,8 @@
 
     <string name="browser_title">Built-in browser</string>
     <string name="browser_back">Back</string>
+    <string name="browser_back_to_app">Back to Grabi</string>
+    <string name="browser_home">Home</string>
     <string name="browser_forward">Forward</string>
     <string name="browser_url_hint">Search or type a URL</string>
     <string name="browser_tabs">Tabs</string>
